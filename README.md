@@ -41,8 +41,6 @@ SmartParkingUTEQ/
     └── routes.js
 ```
 
-![Estructura principal del proyecto](docs/images/11-estructura-proyecto.png)
-
 ## Interfaz principal
 
 La vista **Vehículos y propietarios** presenta los registros almacenados en la base de datos. Desde esta pantalla se puede buscar información, consultar los datos de cada vehículo y propietario, actualizar la lista y acceder a las operaciones de registro, edición y eliminación.
