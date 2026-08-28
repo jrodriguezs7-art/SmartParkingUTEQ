@@ -19,6 +19,12 @@
  * )
  */
 
+/**
+ * AppSidebar Component
+ *
+ * Sidebar principal del sistema Smart Parking UTEQ.
+ */
+
 import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 
@@ -30,30 +36,18 @@ import {
   CSidebarHeader,
   CSidebarToggler,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
 
 import { AppSidebarNav } from './AppSidebarNav'
 
-import { logo } from 'src/assets/brand/logo'
-import { sygnet } from 'src/assets/brand/sygnet'
+// Logo Smart Parking UTEQ
+import SmartParkingLogo from '../assets/brand/SmartParkingLogo'
 
-// sidebar nav config
+// Configuración del menú lateral
 import navigation from '../_nav'
 
-/**
- * AppSidebar functional component
- *
- * Manages sidebar state with Redux:
- * - sidebarShow: Controls sidebar visibility
- * - sidebarUnfoldable: Controls narrow/wide mode
- *
- * Renders navigation from _nav.js configuration file.
- * Memoized to prevent unnecessary re-renders.
- *
- * @returns {React.ReactElement} Sidebar with navigation
- */
 const AppSidebar = () => {
   const dispatch = useDispatch()
+
   const unfoldable = useSelector((state) => state.sidebarUnfoldable)
   const sidebarShow = useSelector((state) => state.sidebarShow)
 
@@ -65,24 +59,77 @@ const AppSidebar = () => {
       unfoldable={unfoldable}
       visible={sidebarShow}
       onVisibleChange={(visible) => {
-        dispatch({ type: 'set', sidebarShow: visible })
+        dispatch({
+          type: 'set',
+          sidebarShow: visible,
+        })
       }}
     >
-      <CSidebarHeader className="border-bottom">
-        <CSidebarBrand to="/">
-          <CIcon customClassName="sidebar-brand-full" icon={logo} height={32} />
-          <CIcon customClassName="sidebar-brand-narrow" icon={sygnet} height={32} />
+      <CSidebarHeader
+        className="border-bottom"
+        style={{
+          minHeight: '72px',
+          padding: '8px 10px',
+        }}
+      >
+        <CSidebarBrand
+          to="/"
+          className="d-flex align-items-center justify-content-center w-100"
+          style={{
+            minHeight: '54px',
+            overflow: 'hidden',
+          }}
+        >
+          <SmartParkingLogo
+            className="sidebar-brand-full"
+            width={210}
+            height={50}
+            style={{
+              color: '#ffffff',
+              maxWidth: '100%',
+            }}
+          />
+
+          <div
+            className="sidebar-brand-narrow"
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '9px',
+              backgroundColor: '#00843D',
+              color: '#ffffff',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '25px',
+              fontWeight: '800',
+            }}
+          >
+            P
+          </div>
         </CSidebarBrand>
+
         <CCloseButton
           className="d-lg-none"
           dark
-          onClick={() => dispatch({ type: 'set', sidebarShow: false })}
+          onClick={() =>
+            dispatch({
+              type: 'set',
+              sidebarShow: false,
+            })
+          }
         />
       </CSidebarHeader>
+
       <AppSidebarNav items={navigation} />
+
       <CSidebarFooter className="border-top d-none d-lg-flex">
         <CSidebarToggler
-          onClick={() => dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })}
+          onClick={() =>
+            dispatch({
+              type: 'set',
+              sidebarUnfoldable: !unfoldable,
+            })
+          }
         />
       </CSidebarFooter>
     </CSidebar>

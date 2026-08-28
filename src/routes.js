@@ -15,6 +15,10 @@
 
 import React from 'react'
 
+const ListaVehiculos = React.lazy(
+  () => import('./views/parqueadero/ListaVehiculos'),
+)
+
 // Dashboard
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
 
@@ -127,6 +131,13 @@ export const routes = [
   { path: '/icons/flags', name: 'Flags', element: Flags },
   { path: '/icons/brands', name: 'Brands', element: Brands },
   { path: '/widgets', name: 'Widgets', element: Widgets },
+
+  {
+  path: '/parqueadero/vehiculos',
+  name: 'Vehículos y propietarios',
+  element: ListaVehiculos,
+  },
+
 ]
 
 export default routes
