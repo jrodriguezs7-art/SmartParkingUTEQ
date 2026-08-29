@@ -19,6 +19,13 @@ const ListaVehiculos = React.lazy(
   () => import('./views/parqueadero/ListaVehiculos'),
 )
 
+const Puestos = React.lazy(
+  () =>
+    import(
+      './views/parqueadero/Puestos'
+    ),
+)
+
 // Dashboard
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
 
@@ -136,6 +143,12 @@ export const routes = [
   path: '/parqueadero/vehiculos',
   name: 'Vehículos y propietarios',
   element: ListaVehiculos,
+  },
+
+  {
+  path: '/parqueadero/puestos',
+  name: 'Puestos',
+  element: Puestos,
   },
 
 ]
