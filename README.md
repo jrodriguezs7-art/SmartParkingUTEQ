@@ -41,6 +41,8 @@ SmartParkingUTEQ/
     └── routes.js
 ```
 
+![Estructura principal del proyecto](docs/images/11-estructura-proyecto.png)
+
 ## Interfaz principal
 
 La vista **Vehículos y propietarios** presenta los registros almacenados en la base de datos. Desde esta pantalla se puede buscar información, consultar los datos de cada vehículo y propietario, actualizar la lista y acceder a las operaciones de registro, edición y eliminación.
@@ -79,6 +81,28 @@ Después de registrar correctamente un vehículo, la información se actualiza y
 Antes de eliminar un vehículo, el sistema muestra una ventana de confirmación con información básica del registro. De esta forma se reduce el riesgo de eliminar información accidentalmente.
 
 ![Confirmación de eliminación](docs/images/04-eliminar-registro.png)
+
+## Gestión de puestos
+
+El módulo **Puestos** permite visualizar y administrar los espacios del parqueadero en tiempo real, así como consultar el historial de uso de cada puesto.
+
+### Estado actual
+
+Muestra el total de puestos disponibles, cuántos están libres y ocupados, junto con el detalle del vehículo y propietario asignado a cada puesto ocupado. Los datos se actualizan automáticamente conforme rota el uso de los vehículos.
+
+![Estado actual de los puestos](docs/images/12-gestion-puestos-estado-actual.png)
+
+### Historial
+
+Permite seleccionar un puesto específico y consultar el historial de vehículos que lo han utilizado, incluyendo hora de entrada, hora de salida y tiempo total estacionado.
+
+![Historial de un puesto](docs/images/13-gestion-puestos-historial.png)
+
+### Administrar puestos
+
+Desde esta sección se listan todos los puestos con su código, columna, número, sensor asociado y estado actual, permitiendo agregar, editar o eliminar puestos.
+
+![Administración de puestos](docs/images/14-gestion-puestos-administrar.png)
 
 ## Base de datos con Supabase
 
