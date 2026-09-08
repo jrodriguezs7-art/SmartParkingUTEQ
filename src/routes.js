@@ -13,18 +13,25 @@
  * @module routes
  */
 
-import React from 'react'
+  import React from 'react'
 
-const ListaVehiculos = React.lazy(
+  const ListaVehiculos = React.lazy(
   () => import('./views/parqueadero/ListaVehiculos'),
-)
+  )
 
-const Puestos = React.lazy(
+  const Puestos = React.lazy(
   () =>
     import(
       './views/parqueadero/Puestos'
     ),
-)
+  )
+
+  const ReconocimientoPlacas = React.lazy(
+  () =>
+    import(
+      './views/parqueadero/reconocimiento/ReconocimientoPlacas'
+    ),
+  )
 
 // Dashboard
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
@@ -149,6 +156,12 @@ export const routes = [
   path: '/parqueadero/puestos',
   name: 'Puestos',
   element: Puestos,
+  },
+
+  {
+  path: '/parqueadero/reconocimiento-placas',
+  name: 'Reconocimiento de placas',
+  element: ReconocimientoPlacas,
   },
 
 ]
