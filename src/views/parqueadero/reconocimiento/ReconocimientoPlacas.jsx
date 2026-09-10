@@ -45,7 +45,7 @@ import {
 } from '../../../lib/supabase'
 
 // ======================================================
-// CONFIGURACIÓN
+// CONFIGURACIÓN DE CÁMARA
 // ======================================================
 
 const ANCHO_RECORTE = 0.65
@@ -66,36 +66,21 @@ const normalizarPlaca = (valor = '') => {
 // ======================================================
 
 const formatearPlaca = (valor = '') => {
-  const placa =
-    normalizarPlaca(valor)
+  const placa = normalizarPlaca(valor)
 
-  if (
-    /^[A-Z]{3}[0-9]{4}$/.test(
-      placa,
-    )
-  ) {
-    return `${placa.slice(
-      0,
-      3,
-    )}-${placa.slice(3)}`
+  if (/^[A-Z]{3}[0-9]{4}$/.test(placa)) {
+    return `${placa.slice(0, 3)}-${placa.slice(3)}`
   }
 
-  if (
-    /^[A-Z]{3}[0-9]{3}$/.test(
-      placa,
-    )
-  ) {
-    return `${placa.slice(
-      0,
-      3,
-    )}-${placa.slice(3)}`
+  if (/^[A-Z]{3}[0-9]{3}$/.test(placa)) {
+    return `${placa.slice(0, 3)}-${placa.slice(3)}`
   }
 
   return placa
 }
 
 // ======================================================
-// CORRECCIONES OCR
+// CORRECCIÓN DE ERRORES OCR
 // ======================================================
 
 const convertirALetra = (caracter) => {
@@ -116,12 +101,18 @@ const convertirANumero = (caracter) => {
     O: '0',
     Q: '0',
     D: '0',
+
     I: '1',
     L: '1',
+
     Z: '2',
+
     S: '5',
+
     G: '6',
+
     T: '7',
+
     B: '8',
   }
 
@@ -129,17 +120,16 @@ const convertirANumero = (caracter) => {
 }
 
 // ======================================================
-// EXTRAER PLACA
+// EXTRAER PLACA DEL TEXTO OCR
 // ======================================================
 
 const extraerPlaca = (texto = '') => {
-  const limpio =
-    normalizarPlaca(texto)
+  const limpio = normalizarPlaca(texto)
+
+  // 3 letras + 4 números
 
   const cuatroDigitos =
-    limpio.match(
-      /[A-Z]{3}[0-9]{4}/,
-    )
+    limpio.match(/[A-Z]{3}[0-9]{4}/)
 
   if (cuatroDigitos) {
     return formatearPlaca(
@@ -147,10 +137,10 @@ const extraerPlaca = (texto = '') => {
     )
   }
 
+  // 3 letras + 3 números
+
   const tresDigitos =
-    limpio.match(
-      /[A-Z]{3}[0-9]{3}/,
-    )
+    limpio.match(/[A-Z]{3}[0-9]{3}/)
 
   if (tresDigitos) {
     return formatearPlaca(
@@ -158,14 +148,12 @@ const extraerPlaca = (texto = '') => {
     )
   }
 
-  for (
-    const longitud
-    of [7, 6]
-  ) {
+  // Corrección de errores frecuentes.
+
+  for (const longitud of [7, 6]) {
     for (
       let inicio = 0;
-      inicio <=
-      limpio.length - longitud;
+      inicio <= limpio.length - longitud;
       inicio += 1
     ) {
       const fragmento =
@@ -178,18 +166,14 @@ const extraerPlaca = (texto = '') => {
         fragmento
           .slice(0, 3)
           .split('')
-          .map(
-            convertirALetra,
-          )
+          .map(convertirALetra)
           .join('')
 
       const numeros =
         fragmento
           .slice(3)
           .split('')
-          .map(
-            convertirANumero,
-          )
+          .map(convertirANumero)
           .join('')
 
       const resultado =
@@ -211,7 +195,7 @@ const extraerPlaca = (texto = '') => {
 }
 
 // ======================================================
-// GENERAR TOKEN PARA TELÉFONO
+// GENERAR TOKEN PARA SESIÓN QR
 // ======================================================
 
 const generarTokenSesion = () => {
@@ -223,9 +207,7 @@ const generarTokenSesion = () => {
       datos,
     )
 
-    return Array.from(
-      datos,
-    )
+    return Array.from(datos)
       .map((numero) =>
         numero
           .toString(16)
@@ -285,7 +267,19 @@ const ReconocimientoPlacas = () => {
     useRef(null)
 
   // ====================================================
-  // CÁMARA PC
+  // VISTA PRINCIPAL
+  //
+  // CAMARA = cámara de PC
+  // QR     = conexión móvil
+  // ====================================================
+
+  const [
+    modoVista,
+    setModoVista,
+  ] = useState('CAMARA')
+
+  // ====================================================
+  // CÁMARA
   // ====================================================
 
   const [
@@ -328,7 +322,7 @@ const ReconocimientoPlacas = () => {
   ] = useState('')
 
   // ====================================================
-  // RESULTADO PC
+  // RESULTADO
   // ====================================================
 
   const [
@@ -342,7 +336,7 @@ const ReconocimientoPlacas = () => {
   ] = useState('')
 
   // ====================================================
-  // MÓVIL
+  // QR / TELÉFONO
   // ====================================================
 
   const [
@@ -408,7 +402,7 @@ const ReconocimientoPlacas = () => {
     }
 
   // ====================================================
-  // ACTIVAR CÁMARA PC
+  // ACTIVAR CÁMARA
   // ====================================================
 
   const activarCamara =
@@ -428,20 +422,19 @@ const ReconocimientoPlacas = () => {
           )
         }
 
-        if (
-          streamRef.current
-        ) {
+        if (streamRef.current) {
           streamRef.current
             .getTracks()
             .forEach(
               (track) =>
                 track.stop(),
             )
+
+          streamRef.current = null
         }
 
         const stream =
-          await navigator
-            .mediaDevices
+          await navigator.mediaDevices
             .getUserMedia({
               video: {
                 width: {
@@ -459,9 +452,7 @@ const ReconocimientoPlacas = () => {
         streamRef.current =
           stream
 
-        if (
-          videoRef.current
-        ) {
+        if (videoRef.current) {
           videoRef.current.srcObject =
             stream
 
@@ -515,9 +506,7 @@ const ReconocimientoPlacas = () => {
   // ====================================================
 
   const detenerCamara = () => {
-    if (
-      streamRef.current
-    ) {
+    if (streamRef.current) {
       streamRef.current
         .getTracks()
         .forEach(
@@ -528,9 +517,7 @@ const ReconocimientoPlacas = () => {
       streamRef.current = null
     }
 
-    if (
-      videoRef.current
-    ) {
+    if (videoRef.current) {
       videoRef.current.srcObject =
         null
     }
@@ -539,14 +526,36 @@ const ReconocimientoPlacas = () => {
   }
 
   // ====================================================
-  // WORKER OCR
+  // CAMBIAR ENTRE CÁMARA Y QR
+  // ====================================================
+
+  const cambiarModoVista = () => {
+    if (
+      modoVista === 'CAMARA'
+    ) {
+      // Al pasar a QR apagamos la cámara de la PC
+      // para no dejarla funcionando innecesariamente.
+
+      detenerCamara()
+
+      setModoVista('QR')
+
+      return
+    }
+
+    // La sesión QR no se destruye automáticamente.
+    // Si vuelve después, el mismo QR seguirá visible.
+
+    setModoVista('CAMARA')
+  }
+
+  // ====================================================
+  // CREAR WORKER OCR
   // ====================================================
 
   const obtenerWorker =
     async () => {
-      if (
-        workerRef.current
-      ) {
+      if (workerRef.current) {
         return workerRef.current
       }
 
@@ -600,7 +609,7 @@ const ReconocimientoPlacas = () => {
     }
 
   // ====================================================
-  // CAPTURAR PLACA
+  // CAPTURAR ÁREA DE PLACA
   // ====================================================
 
   const capturarPlaca = () => {
@@ -670,14 +679,12 @@ const ReconocimientoPlacas = () => {
 
     canvas.width =
       Math.round(
-        ancho *
-          escala,
+        ancho * escala,
       )
 
     canvas.height =
       Math.round(
-        alto *
-          escala,
+        alto * escala,
       )
 
     const contexto =
@@ -713,6 +720,10 @@ const ReconocimientoPlacas = () => {
 
     const datos =
       imagen.data
+
+    // ==================================================
+    // ESCALA DE GRISES + CONTRASTE
+    // ==================================================
 
     for (
       let i = 0;
@@ -776,9 +787,17 @@ const ReconocimientoPlacas = () => {
 
   const escanearPlaca =
     async () => {
+      if (!camaraActiva) {
+        return
+      }
+
       if (
-        !camaraActiva
+        cargandoVehiculos
       ) {
+        setErrorEscaneo(
+          'Espere mientras se cargan los vehículos.',
+        )
+
         return
       }
 
@@ -804,6 +823,10 @@ const ReconocimientoPlacas = () => {
 
         const worker =
           await obtenerWorker()
+
+        setEstadoEscaneo(
+          'Analizando matrícula...',
+        )
 
         const {
           data,
@@ -873,6 +896,7 @@ const ReconocimientoPlacas = () => {
         }
       } catch (error) {
         console.error(
+          'Error OCR:',
           error,
         )
 
@@ -890,7 +914,7 @@ const ReconocimientoPlacas = () => {
     }
 
   // ====================================================
-  // GENERAR QR
+  // GENERAR SESIÓN QR
   // ====================================================
 
   const generarSesionMovil =
@@ -908,7 +932,7 @@ const ReconocimientoPlacas = () => {
 
         if (!base) {
           setErrorMovil(
-            'Ingrese la dirección Network de Vite.',
+            'Ingrese la dirección de acceso desde el teléfono, por ejemplo: http://192.168.0.198:3000',
           )
 
           return
@@ -925,6 +949,10 @@ const ReconocimientoPlacas = () => {
 
           return
         }
+
+        // =================================================
+        // CERRAR CANAL ANTERIOR
+        // =================================================
 
         if (
           canalMovilRef.current
@@ -951,9 +979,9 @@ const ReconocimientoPlacas = () => {
           'CONECTANDO',
         )
 
-        // =============================================
+        // =================================================
         // CREAR CANAL
-        // =============================================
+        // =================================================
 
         const canal =
           supabase.channel(
@@ -970,9 +998,9 @@ const ReconocimientoPlacas = () => {
         canalMovilRef.current =
           canal
 
-        // =============================================
+        // =================================================
         // TELÉFONO CONECTADO
-        // =============================================
+        // =================================================
 
         canal.on(
           'broadcast',
@@ -987,9 +1015,9 @@ const ReconocimientoPlacas = () => {
           },
         )
 
-        // =============================================
-        // PLACA RECIBIDA DESDE TELÉFONO
-        // =============================================
+        // =================================================
+        // PLACA DESDE EL TELÉFONO
+        // =================================================
 
         canal.on(
           'broadcast',
@@ -1014,6 +1042,8 @@ const ReconocimientoPlacas = () => {
               buscarVehiculoPorPlaca(
                 placa,
               )
+
+            // No recibimos la captura grande del teléfono.
 
             setImagenCapturada('')
 
@@ -1040,8 +1070,7 @@ const ReconocimientoPlacas = () => {
 
                 placa,
 
-                vehiculo:
-                  null,
+                vehiculo: null,
 
                 textoOcr:
                   payload?.textoOcr ??
@@ -1056,9 +1085,9 @@ const ReconocimientoPlacas = () => {
               'RESULTADO',
             )
 
-            // =========================================
-            // RESPUESTA COMPLETA HACIA EL TELÉFONO
-            // =========================================
+            // =================================================
+            // DEVOLVER DATOS COMPLETOS AL TELÉFONO
+            // =================================================
 
             await canal.send({
               type:
@@ -1123,6 +1152,10 @@ const ReconocimientoPlacas = () => {
           },
         )
 
+        // =================================================
+        // SUSCRIBIRSE
+        // =================================================
+
         canal.subscribe(
           (estado) => {
             if (
@@ -1146,6 +1179,19 @@ const ReconocimientoPlacas = () => {
                 'No se pudo iniciar la sesión móvil.',
               )
             }
+
+            if (
+              estado ===
+              'TIMED_OUT'
+            ) {
+              setEstadoMovil(
+                'ERROR',
+              )
+
+              setErrorMovil(
+                'La conexión móvil agotó el tiempo de espera.',
+              )
+            }
           },
         )
       } catch (error) {
@@ -1166,7 +1212,7 @@ const ReconocimientoPlacas = () => {
     }
 
   // ====================================================
-  // CERRAR SESIÓN MÓVIL
+  // CERRAR SESIÓN QR
   // ====================================================
 
   const cerrarSesionMovil =
@@ -1192,7 +1238,7 @@ const ReconocimientoPlacas = () => {
     }
 
   // ====================================================
-  // LIMPIAR
+  // LIMPIAR RESULTADO
   // ====================================================
 
   const limpiarResultado =
@@ -1205,11 +1251,13 @@ const ReconocimientoPlacas = () => {
     }
 
   // ====================================================
-  // LIMPIEZA FINAL
+  // LIMPIEZA GENERAL
   // ====================================================
 
   useEffect(() => {
     return () => {
+      // Cámara
+
       if (
         streamRef.current
       ) {
@@ -1221,13 +1269,20 @@ const ReconocimientoPlacas = () => {
           )
       }
 
+      // OCR
+
       if (
         workerRef.current
       ) {
         workerRef.current
           .terminate()
           .catch(() => {})
+
+        workerRef.current =
+          null
       }
+
+      // Realtime
 
       if (
         canalMovilRef.current
@@ -1240,67 +1295,69 @@ const ReconocimientoPlacas = () => {
   }, [])
 
   // ====================================================
-  // ESTADO MÓVIL
+  // ESTADO DEL TELÉFONO
   // ====================================================
 
-  const colorEstadoMovil = () => {
-    if (
-      estadoMovil ===
-        'CONECTADO' ||
-      estadoMovil ===
-        'RESULTADO'
-    ) {
-      return 'success'
-    }
+  const colorEstadoMovil =
+    () => {
+      if (
+        estadoMovil ===
+          'CONECTADO' ||
+        estadoMovil ===
+          'RESULTADO'
+      ) {
+        return 'success'
+      }
 
-    if (
-      estadoMovil ===
+      if (
+        estadoMovil ===
         'ERROR'
-    ) {
-      return 'danger'
+      ) {
+        return 'danger'
+      }
+
+      return 'secondary'
     }
 
-    return 'secondary'
-  }
+  const textoEstadoMovil =
+    () => {
+      if (
+        estadoMovil ===
+        'ESPERANDO'
+      ) {
+        return 'Esperando teléfono'
+      }
 
-  const textoEstadoMovil = () => {
-    if (
-      estadoMovil ===
-      'ESPERANDO'
-    ) {
-      return 'Esperando teléfono'
+      if (
+        estadoMovil ===
+        'CONECTADO'
+      ) {
+        return 'Teléfono conectado'
+      }
+
+      if (
+        estadoMovil ===
+        'RESULTADO'
+      ) {
+        return 'Placa recibida'
+      }
+
+      if (
+        estadoMovil ===
+        'ERROR'
+      ) {
+        return 'Error'
+      }
+
+      if (
+        estadoMovil ===
+        'CONECTANDO'
+      ) {
+        return 'Conectando...'
+      }
+
+      return 'Sin sesión'
     }
-
-    if (
-      estadoMovil ===
-      'CONECTADO'
-    ) {
-      return 'Teléfono conectado'
-    }
-
-    if (
-      estadoMovil ===
-      'RESULTADO'
-    ) {
-      return 'Placa recibida'
-    }
-
-    if (
-      estadoMovil ===
-      'ERROR'
-    ) {
-      return 'Error de conexión'
-    }
-
-    if (
-      estadoMovil ===
-      'CONECTANDO'
-    ) {
-      return 'Conectando...'
-    }
-
-    return 'Sin sesión'
-  }
 
   // ====================================================
   // INTERFAZ
@@ -1308,6 +1365,10 @@ const ReconocimientoPlacas = () => {
 
   return (
     <>
+      {/* ==============================================
+          CABECERA PRINCIPAL
+      ============================================== */}
+
       <CCard className="mb-4">
         <CCardHeader>
           <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -1343,11 +1404,15 @@ const ReconocimientoPlacas = () => {
         </CCardHeader>
 
         <CCardBody>
-          Coloque la matrícula dentro del recuadro
-          para reconocerla desde esta PC o conecte
-          un teléfono mediante código QR.
+          Reconozca una matrícula utilizando la cámara
+          del dispositivo o conecte un teléfono mediante
+          código QR.
         </CCardBody>
       </CCard>
+
+      {/* ==============================================
+          ERROR DE VEHÍCULOS
+      ============================================== */}
 
       {errorVehiculos && (
         <CAlert color="danger">
@@ -1356,253 +1421,544 @@ const ReconocimientoPlacas = () => {
         </CAlert>
       )}
 
-      <CRow className="g-4">
+      {/* ==============================================
+          DISTRIBUCIÓN PRINCIPAL
+
+          IZQUIERDA = CÁMARA / QR
+          DERECHA   = RESULTADO
+      ============================================== */}
+
+      <CRow className="g-4 align-items-stretch">
         {/* ============================================
-            CÁMARA PC
+            IZQUIERDA
         ============================================ */}
 
         <CCol
           xs={12}
           lg={8}
         >
-          <CCard>
-            <CCardHeader>
-              <CIcon
-                icon={cilCamera}
-                className="me-2"
-              />
+          <CCard className="h-100">
+            {/* ========================================
+                CABECERA DINÁMICA
+            ======================================== */}
 
-              <strong>
-                Cámara de esta PC
-              </strong>
+            <CCardHeader>
+              <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                  <CIcon
+                    icon={
+                      modoVista ===
+                      'CAMARA'
+                        ? cilCamera
+                        : cilQrCode
+                    }
+                    className="me-2"
+                  />
+
+                  <strong>
+                    {modoVista ===
+                    'CAMARA'
+                      ? 'Cámara de esta PC'
+                      : 'Conexión por código QR'}
+                  </strong>
+                </div>
+
+                <div className="d-flex align-items-center gap-2">
+                  {modoVista ===
+                    'QR' && (
+                    <CBadge
+                      color={
+                        colorEstadoMovil()
+                      }
+                    >
+                      {textoEstadoMovil()}
+                    </CBadge>
+                  )}
+
+                  {/* ==================================
+                      BOTÓN PRINCIPAL DE CAMBIO
+                  ================================== */}
+
+                  <CButton
+                    color={
+                      modoVista ===
+                      'CAMARA'
+                        ? 'primary'
+                        : 'success'
+                    }
+                    size="sm"
+                    onClick={
+                      cambiarModoVista
+                    }
+                    disabled={
+                      escaneando
+                    }
+                  >
+                    <CIcon
+                      icon={
+                        modoVista ===
+                        'CAMARA'
+                          ? cilQrCode
+                          : cilCamera
+                      }
+                      className="me-2"
+                    />
+
+                    {modoVista ===
+                    'CAMARA'
+                      ? 'CONECTARSE POR QR'
+                      : 'CÁMARA DEL DISPOSITIVO'}
+                  </CButton>
+                </div>
+              </div>
             </CCardHeader>
 
             <CCardBody>
-              {errorCamara && (
-                <CAlert color="danger">
-                  {errorCamara}
-                </CAlert>
-              )}
+              {/* ======================================
+                  MODO CÁMARA
+              ====================================== */}
 
-              {errorEscaneo && (
-                <CAlert
-                  color="warning"
-                  dismissible
-                  onClose={() =>
-                    setErrorEscaneo('')
-                  }
-                >
-                  {errorEscaneo}
-                </CAlert>
-              )}
+              {modoVista ===
+                'CAMARA' && (
+                <>
+                  {errorCamara && (
+                    <CAlert color="danger">
+                      {errorCamara}
+                    </CAlert>
+                  )}
 
-              <div
-                className="position-relative overflow-hidden rounded border mb-3"
-                style={{
-                  width: '100%',
-                  aspectRatio:
-                    '16 / 9',
-
-                  backgroundColor:
-                    '#080b10',
-                }}
-              >
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit:
-                      'contain',
-
-                    display:
-                      camaraActiva
-                        ? 'block'
-                        : 'none',
-                  }}
-                />
-
-                {!camaraActiva && (
-                  <div className="position-absolute top-50 start-50 translate-middle text-center w-100">
-                    <CIcon
-                      icon={cilCamera}
-                      size="4xl"
-                      className="text-body-secondary mb-3"
-                    />
-
-                    <h5 className="text-body-secondary">
-                      Cámara desactivada
-                    </h5>
-
-                    <div className="text-body-secondary">
-                      Presione "Activar cámara".
-                    </div>
-                  </div>
-                )}
-
-                {camaraActiva && (
-                  <>
-                    <div
-                      className="position-absolute top-50 start-50 translate-middle"
-                      style={{
-                        width:
-                          '65%',
-
-                        height:
-                          '28%',
-
-                        border:
-                          '3px solid white',
-
-                        borderRadius:
-                          '10px',
-
-                        pointerEvents:
-                          'none',
-                      }}
-                    />
-
-                    <div
-                      className="position-absolute start-50 translate-middle-x text-white fw-semibold"
-                      style={{
-                        top:
-                          '67%',
-
-                        textShadow:
-                          '0 2px 5px black',
-                      }}
+                  {errorEscaneo && (
+                    <CAlert
+                      color="warning"
+                      dismissible
+                      onClose={() =>
+                        setErrorEscaneo(
+                          '',
+                        )
+                      }
                     >
-                      Coloque la placa dentro del recuadro
-                    </div>
-                  </>
-                )}
+                      {errorEscaneo}
+                    </CAlert>
+                  )}
 
-                {escaneando && (
+                  {/* ==================================
+                      VISOR
+                  ================================== */}
+
                   <div
-                    className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center"
+                    className="position-relative overflow-hidden rounded border mb-3"
                     style={{
+                      width:
+                        '100%',
+
+                      aspectRatio:
+                        '16 / 9',
+
                       backgroundColor:
-                        'rgba(0,0,0,0.75)',
+                        '#080b10',
                     }}
                   >
-                    <CSpinner
-                      color="light"
-                      className="mb-3"
+                    <video
+                      ref={
+                        videoRef
+                      }
+                      autoPlay
+                      playsInline
+                      muted
+                      style={{
+                        width:
+                          '100%',
+
+                        height:
+                          '100%',
+
+                        objectFit:
+                          'contain',
+
+                        display:
+                          camaraActiva
+                            ? 'block'
+                            : 'none',
+                      }}
                     />
 
-                    <strong className="text-white">
-                      {estadoEscaneo ||
-                        'Procesando...'}
-                    </strong>
+                    {/* ================================
+                        CÁMARA APAGADA
+                    ================================ */}
 
-                    {progreso > 0 && (
-                      <div className="text-white mt-2">
-                        {progreso} %
+                    {!camaraActiva && (
+                      <div className="position-absolute top-50 start-50 translate-middle text-center w-100">
+                        <CIcon
+                          icon={
+                            cilCamera
+                          }
+                          size="4xl"
+                          className="text-body-secondary mb-3"
+                        />
+
+                        <h5 className="text-body-secondary">
+                          Cámara desactivada
+                        </h5>
+
+                        <div className="text-body-secondary">
+                          Presione
+                          {' '}
+                          "Activar cámara".
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ================================
+                        RECUADRO DE PLACA
+                    ================================ */}
+
+                    {camaraActiva && (
+                      <>
+                        <div
+                          className="position-absolute top-50 start-50 translate-middle"
+                          style={{
+                            width:
+                              '65%',
+
+                            height:
+                              '28%',
+
+                            border:
+                              '3px solid white',
+
+                            borderRadius:
+                              '10px',
+
+                            pointerEvents:
+                              'none',
+                          }}
+                        />
+
+                        <div
+                          className="position-absolute start-50 translate-middle-x text-white fw-semibold text-center"
+                          style={{
+                            top:
+                              '67%',
+
+                            width:
+                              '100%',
+
+                            textShadow:
+                              '0 2px 5px black',
+                          }}
+                        >
+                          Coloque la placa dentro del recuadro
+                        </div>
+                      </>
+                    )}
+
+                    {/* ================================
+                        PROCESANDO
+                    ================================ */}
+
+                    {escaneando && (
+                      <div
+                        className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center"
+                        style={{
+                          backgroundColor:
+                            'rgba(0,0,0,0.75)',
+                        }}
+                      >
+                        <CSpinner
+                          color="light"
+                          className="mb-3"
+                        />
+
+                        <strong className="text-white">
+                          {estadoEscaneo ||
+                            'Procesando...'}
+                        </strong>
+
+                        {progreso >
+                          0 && (
+                          <div className="text-white mt-2">
+                            {
+                              progreso
+                            }{' '}
+                            %
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              <canvas
-                ref={canvasRef}
-                style={{
-                  display:
-                    'none',
-                }}
-              />
+                  {/* CANVAS OCR */}
 
-              <div className="d-flex flex-wrap gap-2">
-                <CButton
-                  color="success"
-                  onClick={
-                    activarCamara
-                  }
-                  disabled={
-                    camaraActiva ||
-                    iniciandoCamara
-                  }
-                >
-                  {iniciandoCamara ? (
-                    <>
-                      <CSpinner
-                        size="sm"
-                        className="me-2"
-                      />
+                  <canvas
+                    ref={
+                      canvasRef
+                    }
+                    style={{
+                      display:
+                        'none',
+                    }}
+                  />
 
-                      Activando...
-                    </>
-                  ) : (
-                    <>
+                  {/* ==================================
+                      BOTONES CÁMARA
+                  ================================== */}
+
+                  <div className="d-flex flex-wrap gap-2">
+                    <CButton
+                      color="success"
+                      onClick={
+                        activarCamara
+                      }
+                      disabled={
+                        camaraActiva ||
+                        iniciandoCamara
+                      }
+                    >
+                      {iniciandoCamara ? (
+                        <>
+                          <CSpinner
+                            size="sm"
+                            className="me-2"
+                          />
+
+                          Activando...
+                        </>
+                      ) : (
+                        <>
+                          <CIcon
+                            icon={
+                              cilCamera
+                            }
+                            className="me-2"
+                          />
+
+                          Activar cámara
+                        </>
+                      )}
+                    </CButton>
+
+                    <CButton
+                      color="primary"
+                      onClick={
+                        escanearPlaca
+                      }
+                      disabled={
+                        !camaraActiva ||
+                        escaneando ||
+                        cargandoVehiculos
+                      }
+                    >
+                      {escaneando ? (
+                        <>
+                          <CSpinner
+                            size="sm"
+                            className="me-2"
+                          />
+
+                          Escaneando...
+                        </>
+                      ) : (
+                        <>
+                          <CIcon
+                            icon={
+                              cilCarAlt
+                            }
+                            className="me-2"
+                          />
+
+                          Escanear placa
+                        </>
+                      )}
+                    </CButton>
+
+                    <CButton
+                      color="danger"
+                      variant="outline"
+                      onClick={
+                        detenerCamara
+                      }
+                      disabled={
+                        !camaraActiva ||
+                        escaneando
+                      }
+                    >
                       <CIcon
-                        icon={cilCamera}
+                        icon={
+                          cilMediaStop
+                        }
                         className="me-2"
                       />
 
-                      Activar cámara
+                      Detener cámara
+                    </CButton>
+
+                    {resultado && (
+                      <CButton
+                        color="secondary"
+                        variant="outline"
+                        onClick={
+                          limpiarResultado
+                        }
+                      >
+                        Limpiar resultado
+                      </CButton>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* ======================================
+                  MODO QR
+              ====================================== */}
+
+              {modoVista ===
+                'QR' && (
+                <>
+                  {errorMovil && (
+                    <CAlert color="warning">
+                      {errorMovil}
+                    </CAlert>
+                  )}
+
+                  {/* ================================
+                      TODAVÍA NO HAY QR
+                  ================================ */}
+
+                  {!urlQr && (
+                    <>
+                      <div className="mb-4">
+                        <label className="form-label fw-semibold">
+                          Dirección de acceso desde el teléfono
+                        </label>
+
+                        <CFormInput
+                          value={
+                            urlBaseMovil
+                          }
+                          onChange={(
+                            evento,
+                          ) =>
+                            setUrlBaseMovil(
+                              evento
+                                .target
+                                .value,
+                            )
+                          }
+                          placeholder="http://192.168.0.198:3000"
+                        />
+
+                        <div className="text-body-secondary mt-2">
+                          Ingrese la dirección Network
+                          correspondiente a esta PC.
+                        </div>
+                      </div>
+
+                      <div
+                        className="d-flex flex-column justify-content-center align-items-center text-center border rounded mb-3"
+                        style={{
+                          minHeight:
+                            '380px',
+                        }}
+                      >
+                        <CIcon
+                          icon={
+                            cilMobile
+                          }
+                          size="4xl"
+                          className="text-body-secondary mb-3"
+                        />
+
+                        <h4>
+                          Conectar teléfono
+                        </h4>
+
+                        <p className="text-body-secondary px-4">
+                          Genere el código QR y escanéelo
+                          con el teléfono para conectar
+                          el reconocimiento móvil.
+                        </p>
+
+                        <CButton
+                          color="primary"
+                          size="lg"
+                          onClick={
+                            generarSesionMovil
+                          }
+                        >
+                          <CIcon
+                            icon={
+                              cilQrCode
+                            }
+                            className="me-2"
+                          />
+
+                          Generar código QR
+                        </CButton>
+                      </div>
                     </>
                   )}
-                </CButton>
 
-                <CButton
-                  color="primary"
-                  onClick={
-                    escanearPlaca
-                  }
-                  disabled={
-                    !camaraActiva ||
-                    escaneando ||
-                    cargandoVehiculos
-                  }
-                >
-                  <CIcon
-                    icon={cilCarAlt}
-                    className="me-2"
-                  />
+                  {/* ================================
+                      QR GENERADO
+                  ================================ */}
 
-                  Escanear placa
-                </CButton>
+                  {urlQr && (
+                    <>
+                      <div
+                        className="d-flex flex-column justify-content-center align-items-center text-center border rounded p-4"
+                        style={{
+                          minHeight:
+                            '450px',
+                        }}
+                      >
+                        <div
+                          className="bg-white rounded p-3 mb-4"
+                        >
+                          <QRCodeSVG
+                            value={
+                              urlQr
+                            }
+                            size={280}
+                            level="M"
+                            marginSize={2}
+                          />
+                        </div>
 
-                <CButton
-                  color="danger"
-                  variant="outline"
-                  onClick={
-                    detenerCamara
-                  }
-                  disabled={
-                    !camaraActiva ||
-                    escaneando
-                  }
-                >
-                  <CIcon
-                    icon={cilMediaStop}
-                    className="me-2"
-                  />
+                        <h4>
+                          Escanee el QR con el teléfono
+                        </h4>
 
-                  Detener cámara
-                </CButton>
+                        <div className="text-body-secondary mb-4">
+                          Estado:
+                          {' '}
+                          <strong>
+                            {
+                              textoEstadoMovil()
+                            }
+                          </strong>
+                        </div>
 
-                {resultado && (
-                  <CButton
-                    color="secondary"
-                    variant="outline"
-                    onClick={
-                      limpiarResultado
-                    }
-                  >
-                    Limpiar resultado
-                  </CButton>
-                )}
-              </div>
+                        <CButton
+                          color="danger"
+                          variant="outline"
+                          onClick={
+                            cerrarSesionMovil
+                          }
+                        >
+                          Cerrar sesión móvil
+                        </CButton>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
             </CCardBody>
           </CCard>
         </CCol>
 
         {/* ============================================
-            TELÉFONO
+            DERECHA
+            RESULTADO DEL RECONOCIMIENTO
         ============================================ */}
 
         <CCol
@@ -1611,120 +1967,455 @@ const ReconocimientoPlacas = () => {
         >
           <CCard className="h-100">
             <CCardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <CIcon
-                    icon={cilMobile}
-                    className="me-2"
-                  />
+              <div className="d-flex justify-content-between align-items-center gap-2">
+                <strong>
+                  Resultado del reconocimiento
+                </strong>
 
-                  <strong>
-                    Cámara del teléfono
-                  </strong>
-                </div>
-
-                <CBadge
-                  color={
-                    colorEstadoMovil()
-                  }
-                >
-                  {textoEstadoMovil()}
-                </CBadge>
+                {resultado?.origen && (
+                  <CBadge color="info">
+                    {resultado.origen ===
+                    'telefono'
+                      ? 'Teléfono'
+                      : 'PC'}
+                  </CBadge>
+                )}
               </div>
             </CCardHeader>
 
             <CCardBody>
-              {errorMovil && (
-                <CAlert color="warning">
-                  {errorMovil}
-                </CAlert>
+              {/* ======================================
+                  SIN RESULTADO
+              ====================================== */}
+
+              {!resultado && (
+                <div
+                  className="d-flex flex-column justify-content-center align-items-center text-center"
+                  style={{
+                    minHeight:
+                      '430px',
+                  }}
+                >
+                  <CIcon
+                    icon={
+                      cilCarAlt
+                    }
+                    size="4xl"
+                    className="text-body-secondary mb-3"
+                  />
+
+                  <h5 className="text-body-secondary">
+                    Ninguna placa detectada
+                  </h5>
+
+                  <div className="text-body-secondary">
+                    Utilice la cámara de la PC
+                    o conecte un teléfono.
+                  </div>
+                </div>
               )}
 
-              {!urlQr && (
+              {/* ======================================
+                  VEHÍCULO ENCONTRADO
+              ====================================== */}
+
+              {resultado?.tipo ===
+                'ENCONTRADO' && (
                 <>
-                  <div className="mb-3">
-                    <label className="form-label">
-                      Dirección de acceso desde el teléfono
-                    </label>
+                  <CAlert color="success">
+                    <strong>
+                      Vehículo encontrado
+                    </strong>
+                  </CAlert>
 
-                    <CFormInput
-                      value={
-                        urlBaseMovil
-                      }
-                      onChange={(e) =>
-                        setUrlBaseMovil(
-                          e.target.value,
-                        )
-                      }
-                      placeholder="http://192.168.1.50:5173"
-                    />
+                  {/* ================================
+                      PLACA
+                  ================================ */}
+
+                  <div className="text-body-secondary">
+                    Placa detectada
                   </div>
 
-                  <div
-                    className="d-flex flex-column justify-content-center align-items-center text-center rounded border mb-3"
-                    style={{
-                      minHeight:
-                        '220px',
-                    }}
-                  >
-                    <CIcon
-                      icon={cilQrCode}
-                      size="4xl"
-                      className="text-body-secondary mb-3"
-                    />
-
-                    <h5>
-                      Conectar teléfono
-                    </h5>
-                  </div>
-
-                  <CButton
-                    color="primary"
-                    className="w-100"
-                    onClick={
-                      generarSesionMovil
+                  <h2 className="mb-2">
+                    {
+                      resultado.placa
                     }
+                  </h2>
+
+                  <CBadge
+                    color={
+                      resultado
+                        .vehiculo
+                        .autorizado
+                        ? 'success'
+                        : 'danger'
+                    }
+                    className="mb-3"
                   >
+                    {resultado
+                      .vehiculo
+                      .autorizado
+                      ? 'AUTORIZADO'
+                      : 'NO AUTORIZADO'}
+                  </CBadge>
+
+                  {/* ================================
+                      IMAGEN DE PLACA CAPTURADA
+                  ================================ */}
+
+                  {imagenCapturada && (
+                    <>
+                      <div className="fw-semibold mt-2 mb-2">
+                        Matrícula capturada
+                      </div>
+
+                      <img
+                        src={
+                          imagenCapturada
+                        }
+                        alt="Matrícula capturada"
+                        className="img-fluid rounded border w-100 mb-3"
+                        style={{
+                          maxHeight:
+                            '160px',
+
+                          objectFit:
+                            'contain',
+                        }}
+                      />
+                    </>
+                  )}
+
+                  <hr />
+
+                  {/* ================================
+                      DATOS DEL VEHÍCULO
+                  ================================ */}
+
+                  <h6 className="mb-3">
                     <CIcon
-                      icon={cilQrCode}
+                      icon={
+                        cilCarAlt
+                      }
                       className="me-2"
                     />
 
-                    Generar código QR
+                    Datos del vehículo
+                  </h6>
+
+                  <CRow className="g-3">
+                    <CCol xs={6}>
+                      <div className="text-body-secondary">
+                        Marca
+                      </div>
+
+                      <strong>
+                        {
+                          resultado
+                            .vehiculo
+                            .marca ||
+                          '-'
+                        }
+                      </strong>
+                    </CCol>
+
+                    <CCol xs={6}>
+                      <div className="text-body-secondary">
+                        Modelo
+                      </div>
+
+                      <strong>
+                        {
+                          resultado
+                            .vehiculo
+                            .modelo ||
+                          '-'
+                        }
+                      </strong>
+                    </CCol>
+
+                    <CCol xs={6}>
+                      <div className="text-body-secondary">
+                        Año
+                      </div>
+
+                      <strong>
+                        {
+                          resultado
+                            .vehiculo
+                            .anio ||
+                          '-'
+                        }
+                      </strong>
+                    </CCol>
+
+                    <CCol xs={6}>
+                      <div className="text-body-secondary">
+                        Color
+                      </div>
+
+                      <strong>
+                        {
+                          resultado
+                            .vehiculo
+                            .color ||
+                          '-'
+                        }
+                      </strong>
+                    </CCol>
+
+                    <CCol xs={12}>
+                      <div className="text-body-secondary">
+                        Tipo
+                      </div>
+
+                      <strong>
+                        {
+                          resultado
+                            .vehiculo
+                            .tipo ||
+                          '-'
+                        }
+                      </strong>
+                    </CCol>
+                  </CRow>
+
+                  {/* ================================
+                      FOTO VEHÍCULO
+                  ================================ */}
+
+                  {resultado
+                    .vehiculo
+                    .foto_url && (
+                    <>
+                      <div className="fw-semibold mt-4 mb-2">
+                        Vehículo registrado
+                      </div>
+
+                      <img
+                        src={
+                          resultado
+                            .vehiculo
+                            .foto_url
+                        }
+                        alt="Vehículo registrado"
+                        className="img-fluid rounded border w-100"
+                        style={{
+                          maxHeight:
+                            '220px',
+
+                          objectFit:
+                            'cover',
+                        }}
+                      />
+                    </>
+                  )}
+
+                  <hr className="my-4" />
+
+                  {/* ================================
+                      PROPIETARIO
+                  ================================ */}
+
+                  <h6 className="mb-3">
+                    Propietario / usuario
+                  </h6>
+
+                  <div className="mb-3">
+                    <div className="text-body-secondary">
+                      Nombre
+                    </div>
+
+                    <strong>
+                      {
+                        resultado
+                          .vehiculo
+                          .propietario_nombre ||
+                        '-'
+                      }
+                    </strong>
+                  </div>
+
+                  <div className="mb-3">
+                    <div className="text-body-secondary">
+                      Correo institucional
+                    </div>
+
+                    <strong
+                      style={{
+                        wordBreak:
+                          'break-word',
+                      }}
+                    >
+                      {
+                        resultado
+                          .vehiculo
+                          .correo_institucional ||
+                        '-'
+                      }
+                    </strong>
+                  </div>
+
+                  {resultado
+                    .vehiculo
+                    .cedula_enmascarada && (
+                    <div className="mb-3">
+                      <div className="text-body-secondary">
+                        Identificación
+                      </div>
+
+                      <strong>
+                        {
+                          resultado
+                            .vehiculo
+                            .cedula_enmascarada
+                        }
+                      </strong>
+                    </div>
+                  )}
+
+                  {/* ================================
+                      FOTO PROPIETARIO
+                  ================================ */}
+
+                  {resultado
+                    .vehiculo
+                    .foto_propietario_url && (
+                    <>
+                      <div className="fw-semibold mt-4 mb-2">
+                        Propietario registrado
+                      </div>
+
+                      <div className="text-center">
+                        <img
+                          src={
+                            resultado
+                              .vehiculo
+                              .foto_propietario_url
+                          }
+                          alt="Propietario"
+                          className="img-fluid rounded border"
+                          style={{
+                            width:
+                              '100%',
+
+                            maxHeight:
+                              '260px',
+
+                            objectFit:
+                              'contain',
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* ================================
+                      LIMPIAR
+                  ================================ */}
+
+                  <CButton
+                    color="secondary"
+                    variant="outline"
+                    className="w-100 mt-4"
+                    onClick={
+                      limpiarResultado
+                    }
+                  >
+                    Limpiar resultado
                   </CButton>
                 </>
               )}
 
-              {urlQr && (
+              {/* ======================================
+                  VEHÍCULO NO REGISTRADO
+              ====================================== */}
+
+              {resultado?.tipo ===
+                'NO_REGISTRADO' && (
                 <>
-                  <div
-                    className="d-flex justify-content-center p-3 bg-white rounded mb-3"
-                  >
-                    <QRCodeSVG
-                      value={
-                        urlQr
-                      }
-                      size={220}
-                      level="M"
-                      marginSize={2}
-                    />
+                  <CAlert color="danger">
+                    <strong>
+                      Vehículo no registrado
+                    </strong>
+                  </CAlert>
+
+                  <div className="text-body-secondary">
+                    Placa detectada
                   </div>
 
-                  <div className="text-center mb-3">
-                    <strong>
-                      Escanee el QR con el teléfono
-                    </strong>
-                  </div>
+                  <h2>
+                    {
+                      resultado.placa
+                    }
+                  </h2>
+
+                  <p className="text-body-secondary">
+                    La matrícula fue reconocida,
+                    pero no existe en la base de datos.
+                  </p>
 
                   <CButton
                     color="secondary"
                     variant="outline"
                     className="w-100"
                     onClick={
-                      cerrarSesionMovil
+                      limpiarResultado
                     }
                   >
-                    Cerrar sesión móvil
+                    Limpiar resultado
+                  </CButton>
+                </>
+              )}
+
+              {/* ======================================
+                  NO RECONOCIDA
+              ====================================== */}
+
+              {resultado?.tipo ===
+                'NO_RECONOCIDA' && (
+                <>
+                  <CAlert color="warning">
+                    No se pudo reconocer una matrícula válida.
+                  </CAlert>
+
+                  {imagenCapturada && (
+                    <img
+                      src={
+                        imagenCapturada
+                      }
+                      alt="Imagen analizada"
+                      className="img-fluid rounded border w-100 mb-3"
+                    />
+                  )}
+
+                  <div className="text-body-secondary mb-2">
+                    Texto detectado por OCR
+                  </div>
+
+                  <pre
+                    className="border rounded p-3"
+                    style={{
+                      whiteSpace:
+                        'pre-wrap',
+
+                      wordBreak:
+                        'break-word',
+                    }}
+                  >
+                    {resultado.textoOcr ||
+                      'No se reconocieron caracteres.'}
+                  </pre>
+
+                  <CButton
+                    color="secondary"
+                    variant="outline"
+                    className="w-100"
+                    onClick={
+                      limpiarResultado
+                    }
+                  >
+                    Limpiar resultado
                   </CButton>
                 </>
               )}
@@ -1732,298 +2423,6 @@ const ReconocimientoPlacas = () => {
           </CCard>
         </CCol>
       </CRow>
-
-      {/* ==============================================
-          RESULTADO PC
-      ============================================== */}
-
-      <CCard className="mt-4">
-        <CCardHeader>
-          <div className="d-flex justify-content-between align-items-center">
-            <strong>
-              Resultado del reconocimiento
-            </strong>
-
-            {resultado?.origen && (
-              <CBadge color="info">
-                {resultado.origen ===
-                'telefono'
-                  ? 'Cámara del teléfono'
-                  : 'Cámara de PC'}
-              </CBadge>
-            )}
-          </div>
-        </CCardHeader>
-
-        <CCardBody>
-          {!resultado && (
-            <div className="text-center py-4">
-              <CIcon
-                icon={cilCarAlt}
-                size="3xl"
-                className="text-body-secondary mb-3"
-              />
-
-              <h5 className="text-body-secondary">
-                Ninguna placa detectada
-              </h5>
-            </div>
-          )}
-
-          {resultado?.tipo ===
-            'ENCONTRADO' && (
-            <CRow className="g-4">
-              {imagenCapturada && (
-                <CCol
-                  xs={12}
-                  md={5}
-                >
-                  <div className="fw-semibold mb-2">
-                    Matrícula capturada
-                  </div>
-
-                  <img
-                    src={
-                      imagenCapturada
-                    }
-                    alt="Placa capturada"
-                    className="img-fluid rounded border"
-                  />
-                </CCol>
-              )}
-
-              <CCol
-                xs={12}
-                md={
-                  imagenCapturada
-                    ? 7
-                    : 12
-                }
-              >
-                <CAlert color="success">
-                  <strong>
-                    Vehículo encontrado en la base de datos
-                  </strong>
-                </CAlert>
-
-                <div className="text-body-secondary">
-                  Placa detectada
-                </div>
-
-                <h2>
-                  {
-                    resultado.placa
-                  }
-                </h2>
-
-                <hr />
-
-                <CRow className="g-3">
-                  <CCol sm={6}>
-                    <div className="text-body-secondary">
-                      Marca
-                    </div>
-
-                    <strong>
-                      {
-                        resultado
-                          .vehiculo
-                          .marca
-                      }
-                    </strong>
-                  </CCol>
-
-                  <CCol sm={6}>
-                    <div className="text-body-secondary">
-                      Modelo
-                    </div>
-
-                    <strong>
-                      {
-                        resultado
-                          .vehiculo
-                          .modelo
-                      }
-                    </strong>
-                  </CCol>
-
-                  <CCol sm={6}>
-                    <div className="text-body-secondary">
-                      Año
-                    </div>
-
-                    <strong>
-                      {
-                        resultado
-                          .vehiculo
-                          .anio ??
-                        '-'
-                      }
-                    </strong>
-                  </CCol>
-
-                  <CCol sm={6}>
-                    <div className="text-body-secondary">
-                      Color
-                    </div>
-
-                    <strong>
-                      {
-                        resultado
-                          .vehiculo
-                          .color ??
-                        '-'
-                      }
-                    </strong>
-                  </CCol>
-
-                  <CCol xs={12}>
-                    <div className="text-body-secondary">
-                      Propietario
-                    </div>
-
-                    <strong>
-                      {
-                        resultado
-                          .vehiculo
-                          .propietario_nombre
-                      }
-                    </strong>
-                  </CCol>
-
-                  <CCol xs={12}>
-                    <div className="text-body-secondary">
-                      Correo institucional
-                    </div>
-
-                    <strong>
-                      {
-                        resultado
-                          .vehiculo
-                          .correo_institucional ??
-                        '-'
-                      }
-                    </strong>
-                  </CCol>
-
-                  <CCol xs={12}>
-                    <CBadge
-                      color={
-                        resultado
-                          .vehiculo
-                          .autorizado
-                          ? 'success'
-                          : 'danger'
-                      }
-                    >
-                      {resultado
-                        .vehiculo
-                        .autorizado
-                        ? 'AUTORIZADO'
-                        : 'NO AUTORIZADO'}
-                    </CBadge>
-                  </CCol>
-                </CRow>
-
-                {(resultado
-                  .vehiculo
-                  .foto_url ||
-                  resultado
-                    .vehiculo
-                    .foto_propietario_url) && (
-                  <>
-                    <hr />
-
-                    <CRow className="g-3">
-                      {resultado
-                        .vehiculo
-                        .foto_url && (
-                        <CCol md={6}>
-                          <div className="fw-semibold mb-2">
-                            Vehículo registrado
-                          </div>
-
-                          <img
-                            src={
-                              resultado
-                                .vehiculo
-                                .foto_url
-                            }
-                            alt="Vehículo"
-                            className="img-fluid rounded border"
-                            style={{
-                              width:
-                                '100%',
-
-                              maxHeight:
-                                '280px',
-
-                              objectFit:
-                                'cover',
-                            }}
-                          />
-                        </CCol>
-                      )}
-
-                      {resultado
-                        .vehiculo
-                        .foto_propietario_url && (
-                        <CCol md={6}>
-                          <div className="fw-semibold mb-2">
-                            Propietario registrado
-                          </div>
-
-                          <img
-                            src={
-                              resultado
-                                .vehiculo
-                                .foto_propietario_url
-                            }
-                            alt="Propietario"
-                            className="img-fluid rounded border"
-                            style={{
-                              width:
-                                '100%',
-
-                              maxHeight:
-                                '280px',
-
-                              objectFit:
-                                'contain',
-                            }}
-                          />
-                        </CCol>
-                      )}
-                    </CRow>
-                  </>
-                )}
-              </CCol>
-            </CRow>
-          )}
-
-          {resultado?.tipo ===
-            'NO_REGISTRADO' && (
-            <CAlert color="danger">
-              <h5>
-                Vehículo no registrado
-              </h5>
-
-              <h2 className="mb-0">
-                {
-                  resultado.placa
-                }
-              </h2>
-            </CAlert>
-          )}
-
-          {resultado?.tipo ===
-            'NO_RECONOCIDA' && (
-            <CAlert color="warning">
-              No se pudo reconocer una matrícula válida.
-            </CAlert>
-          )}
-        </CCardBody>
-      </CCard>
     </>
   )
 }

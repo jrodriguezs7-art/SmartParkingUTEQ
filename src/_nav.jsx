@@ -6,7 +6,6 @@ import {
   cilCamera,
   cilCarAlt,
   cilGarage,
-  cilSpeedometer,
 } from '@coreui/icons'
 
 import {
@@ -16,49 +15,26 @@ import {
 
 const _nav = [
   // ====================================================
-  // DASHBOARD
-  // ====================================================
-
-  {
-    component: CNavItem,
-
-    name: 'Dashboard',
-
-    to: '/dashboard',
-
-    icon: (
-      <CIcon
-        icon={cilSpeedometer}
-        customClassName="nav-icon"
-      />
-    ),
-
-    badge: {
-      color: 'info',
-      text: 'NEW',
-    },
-  },
-
-  // ====================================================
   // PARQUEADERO
   // ====================================================
 
   {
     component: CNavTitle,
-
     name: 'Parqueadero',
   },
 
   // ====================================================
-  // VEHÍCULOS
+  // VEHÍCULOS Y PROPIETARIOS
   // ====================================================
 
   {
     component: CNavItem,
 
-    name: 'Vehículos y propietarios',
+    name:
+      'Vehículos y propietarios',
 
-    to: '/parqueadero/vehiculos',
+    to:
+      '/parqueadero/vehiculos',
 
     icon: (
       <CIcon
@@ -77,11 +53,33 @@ const _nav = [
 
     name: 'Puestos',
 
-    to: '/parqueadero/puestos',
+    to:
+      '/parqueadero/puestos',
 
     icon: (
       <CIcon
         icon={cilGarage}
+        customClassName="nav-icon"
+      />
+    ),
+  },
+
+  // ====================================================
+  // MONITOREO DE ENTRADA
+  // ====================================================
+
+  {
+    component: CNavItem,
+
+    name:
+      'Monitoreo de entrada',
+
+    to:
+      '/parqueadero/monitoreo-entrada',
+
+    icon: (
+      <CIcon
+        icon={cilCamera}
         customClassName="nav-icon"
       />
     ),
@@ -94,9 +92,11 @@ const _nav = [
   {
     component: CNavItem,
 
-    name: 'Reconocimiento de placas',
+    name:
+      'Reconocimiento de placas',
 
-    to: '/parqueadero/reconocimiento-placas',
+    to:
+      '/parqueadero/reconocimiento-placas',
 
     icon: (
       <CIcon
