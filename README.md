@@ -1,6 +1,6 @@
 # Smart Parking UTEQ
 
-Sistema web para la gestión de vehículos y propietarios del proyecto **Smart Parking UTEQ**. La aplicación fue desarrollada con **React**, **CoreUI** y **Supabase**, y permite consultar, registrar, editar y eliminar vehículos mediante una interfaz administrativa.
+Sistema web para la gestión de vehículos y propietarios del proyecto **Smart Parking UTEQ**. La aplicación fue desarrollada con **React**, **CoreUI** y **Supabase**, y permite consultar, registrar, editar y eliminar vehículos, administrar los puestos del parqueadero en tiempo real y reconocer placas vehiculares de forma automática mediante OCR.
 
 ## Tecnologías utilizadas
 
@@ -10,6 +10,8 @@ Sistema web para la gestión de vehículos y propietarios del proyecto **Smart P
 - PostgreSQL
 - JavaScript
 - Vite
+- Azure Static Web Apps
+- Azure Functions (API de reconocimiento OCR)
 - Git y GitHub
 
 ## Estructura y configuración del proyecto
@@ -22,26 +24,78 @@ La aplicación se trabaja desde Visual Studio Code, manteniendo los componentes,
 
 ### Estructura principal
 
-Los archivos incorporados para la funcionalidad de vehículos y propietarios se organizan principalmente de la siguiente manera:
-
 ```text
 SmartParkingUTEQ/
-├── .env.local
-├── package.json
-├── package-lock.json
-└── src/
-    ├── hooks/
-    │   └── useVehiculos.js
-    ├── lib/
-    │   └── supabase.js
-    ├── views/
-    │   └── parqueadero/
-    │       └── ListaVehiculos.jsx
-    ├── _nav.jsx
-    └── routes.js
+│
+├── .github/
+│   └── workflows/
+│       ├── azure-static-web-apps-black-wave-0c6e08d0f.yml
+│       └── npm.yml
+│
+├── api/
+│   ├── ocr/
+│   │   ├── function.json
+│   │   └── index.js
+│   ├── host.json
+│   └── package.json
+│
+├── public/
+│
+├── src/
+│   │
+│   ├── assets/
+│   │   └── images/
+│   │       └── avatars/
+│   │           ├── 8.jpeg
+│   │
+│   ├── components/
+│   │   ├── header/
+│   │   │   ├── AppHeaderDropdown.jsx
+│   │   │   └── index.js
+│   │   │
+│   │   ├── AppBreadcrumb.jsx
+│   │   ├── AppContent.jsx
+│   │   ├── AppFooter.jsx
+│   │   ├── AppHeader.jsx
+│   │   ├── AppSidebar.jsx
+│   │   ├── AppSidebarNav.jsx
+│   │   └── index.js
+│   │
+│   ├── hooks/
+│   │   ├── usePuestos.js
+│   │   └── useVehiculos.js
+│   │
+│   ├── layout/
+│   │   └── DefaultLayout.jsx
+│   │
+│   ├── lib/
+│   │   ├── ocr/
+│   │   │   └── ocrApi.js
+│   │   └── supabase.js
+│   │
+│   ├── scss/
+│   │
+│   ├── views/
+│   │   │
+│   │   └── parqueadero/
+│   │       │
+│   │       ├── ListaVehiculos.jsx
+│   │       ├── Puestos.jsx
+│   │       │
+│   │       ├── monitoreo/
+│   │       │   ├── MonitoreoEntrada.jsx
+│   │       │   └── MonitoreoEntradaMovil.jsx
+│   │       │
+│   │       └── reconocimiento/
+│   │           ├── ReconocimientoPlacas.jsx
+│   │           └── ReconocimientoMovil.jsx
+│   │
+│   ├── App.jsx
+│   ├── _nav.jsx
+│   ├── index.jsx
+│   ├── routes.js
+│   └── store.js
 ```
-
-![Estructura principal del proyecto](docs/images/11-estructura-proyecto.png)
 
 ## Interfaz principal
 
@@ -103,6 +157,50 @@ Permite seleccionar un puesto específico y consultar el historial de vehículos
 Desde esta sección se listan todos los puestos con su código, columna, número, sensor asociado y estado actual, permitiendo agregar, editar o eliminar puestos.
 
 ![Administración de puestos](docs/images/14-gestion-puestos-administrar.png)
+
+### Control manual por columnas
+
+Además del modo automático, la vista de **Gestión de puestos** incorpora un modo **Manual** que permite controlar el estado de cada columna de forma independiente. Cada columna (A, B, C, D) muestra su cantidad de puestos libres y ocupados, y ofrece un selector rápido con las opciones **Todo ocupado**, **Variado** y **Todo libre** para actualizar el estado de todos sus puestos a la vez. También se puede consultar el detalle individual de cada puesto (vehículo, placa y propietario asignado cuando está ocupado, o disponibilidad cuando está libre).
+
+![Control manual por columnas en gestión de puestos](docs/images/15-gestion-puestos-manual.png)
+
+## Monitoreo de entrada y reconocimiento automático de placas
+
+El módulo **Monitoreo de entrada** permite detectar automáticamente la placa de un vehículo que ingresa al parqueadero mediante OCR, verificar si el vehículo está registrado en la base de datos y mostrar su información en tiempo real.
+
+### Cámara del equipo
+
+Desde la pantalla principal se puede activar la cámara del computador, capturar una fotografía o seleccionar una imagen en formato JPG o PNG para detectar la placa del vehículo.
+
+![Pantalla inicial de monitoreo de entrada](docs/images/16-monitoreo-entrada-inicio.png)
+
+### Conexión por código QR
+
+Como alternativa a la cámara del equipo, el sistema genera un código QR que permite conectar la cámara de uno o varios teléfonos móviles al monitoreo de entrada. Esto habilita el uso de dispositivos móviles como cámaras remotas para el reconocimiento de placas.
+
+![Código QR para conectar la cámara del teléfono](docs/images/17-monitoreo-entrada-qr.png)
+
+### Uso desde el teléfono móvil
+
+Al escanear el código QR, el teléfono se conecta a la sesión de monitoreo y muestra una interfaz simplificada donde se puede tomar una fotografía del vehículo completo, seleccionar una imagen de la galería o enviarla directamente para su detección.
+
+![Vista móvil del monitoreo de entrada conectado](docs/images/18-monitoreo-movil-inicio.png)
+
+Una vez capturada la fotografía, el vehículo y su placa quedan visibles en la vista previa del teléfono antes de procesar el reconocimiento.
+
+![Fotografía del vehículo y placa capturadas desde el teléfono](docs/images/19-monitoreo-movil-captura.png)
+
+### Resultado del reconocimiento — vehículo registrado
+
+Cuando la placa detectada corresponde a un vehículo existente en Supabase, el sistema muestra el mensaje **Vehículo registrado** junto con los datos del vehículo (marca, modelo, año, color, tipo), la información del propietario, la fotografía registrada, la placa detectada y el porcentaje de confianza del OCR.
+
+![Resultado de reconocimiento con vehículo registrado](docs/images/20-reconocimiento-vehiculo-registrado.png)
+
+### Resultado del reconocimiento — vehículo no registrado
+
+Si la placa detectada no existe en la base de datos, el sistema muestra el mensaje **Vehículo no registrado**, indica que el ingreso no está autorizado y ofrece la opción de agregar directamente el vehículo al módulo de **Vehículos y propietarios** desde el mismo resultado del reconocimiento.
+
+![Resultado de reconocimiento con vehículo no registrado](docs/images/21-reconocimiento-vehiculo-no-registrado.png)
 
 ## Base de datos con Supabase
 
@@ -194,6 +292,11 @@ http://localhost:5173
 - Paginación de resultados.
 - Visualización del estado de autorización.
 - Cédula enmascarada en la tabla.
+- Gestión de puestos en tiempo real, con modo automático y modo manual por columnas.
+- Historial de uso de cada puesto de estacionamiento.
+- Monitoreo de entrada con reconocimiento automático de placas (OCR).
+- Conexión de la cámara del teléfono mediante código QR para el monitoreo de entrada.
+- Verificación automática de vehículos registrados y no registrados al ingreso.
 - Integración de React con Supabase.
 - Interfaz administrativa basada en CoreUI.
 - Diseño adaptable a diferentes tamaños de pantalla.
@@ -206,7 +309,7 @@ Para un entorno de producción se recomienda implementar autenticación y limita
 
 ## Resultado
 
-El proyecto proporciona una interfaz funcional para administrar los vehículos y propietarios de **Smart Parking UTEQ**. La integración entre React, CoreUI y Supabase permite mantener separadas la interfaz de usuario, la lógica de consulta y la persistencia de los datos, facilitando futuras ampliaciones del sistema.
+El proyecto proporciona una interfaz funcional para administrar los vehículos, propietarios y puestos de **Smart Parking UTEQ**, así como un módulo de monitoreo de entrada con reconocimiento automático de placas. La integración entre React, CoreUI, Supabase y el servicio de OCR permite mantener separadas la interfaz de usuario, la lógica de consulta y la persistencia de los datos, facilitando futuras ampliaciones del sistema.
 
 ## Autor
 
