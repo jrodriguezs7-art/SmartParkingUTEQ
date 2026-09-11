@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
+import { useSearchParams } from 'react-router-dom'
+
 import {
   CAlert,
   CBadge,
@@ -32,6 +34,20 @@ import { cilPencil, cilPlus, cilTrash } from '@coreui/icons'
 
 import { useVehiculos } from '../../hooks/useVehiculos'
 
+const formatearPlacaRecibida = (valor = '') => {
+  const placa = String(valor)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+
+  if (/^[A-Z]{3}[0-9]{4}$/.test(placa)) {
+    return `${placa.slice(0, 3)}-${placa.slice(3)}`
+  }
+
+  return String(valor)
+    .trim()
+    .toUpperCase()
+}
+
 const FORMULARIO_INICIAL = {
   placa: '',
   marca: '',
@@ -49,6 +65,11 @@ const FORMULARIO_INICIAL = {
 }
 
 const ListaVehiculos = () => {
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams()
+
   const {
     vehiculos,
     cargando,
@@ -119,13 +140,86 @@ const ListaVehiculos = () => {
     )
   }, [vehiculosFiltrados, paginaActual])
 
-  const abrirAgregar = () => {
+  const abrirAgregar = (placaInicial = '') => {
+    const placa =
+      typeof placaInicial === 'string'
+        ? formatearPlacaRecibida(placaInicial)
+        : ''
+
     setVehiculoEditando(null)
-    setFormulario(FORMULARIO_INICIAL)
+
+    setFormulario({
+      ...FORMULARIO_INICIAL,
+      placa,
+    })
+
     setErrores({})
     setMensaje(null)
     setModalFormulario(true)
   }
+
+  useEffect(() => {
+    const agregarDesdeOcr =
+      searchParams.get('agregar') === '1'
+
+    if (!agregarDesdeOcr) {
+      return
+    }
+
+    const placaRecibida =
+      formatearPlacaRecibida(
+        searchParams.get('placa') || '',
+      )
+
+    setVehiculoEditando(null)
+
+    setFormulario({
+      ...FORMULARIO_INICIAL,
+      placa:
+        placaRecibida,
+    })
+
+    setErrores({})
+
+    setMensaje({
+      color:
+        'info',
+
+      texto:
+        placaRecibida
+          ? `Placa ${placaRecibida} recibida desde Monitoreo de entrada. Complete los demás datos para registrarla.`
+          : 'Complete los datos para registrar el vehículo detectado.',
+    })
+
+    setModalFormulario(true)
+
+    // Limpiamos los parámetros para que el modal no vuelva
+    // a abrirse automáticamente si el componente se renderiza
+    // nuevamente o el usuario cierra el formulario.
+    const nuevosParametros =
+      new URLSearchParams(
+        searchParams,
+      )
+
+    nuevosParametros.delete(
+      'agregar',
+    )
+
+    nuevosParametros.delete(
+      'placa',
+    )
+
+    setSearchParams(
+      nuevosParametros,
+      {
+        replace:
+          true,
+      },
+    )
+  }, [
+    searchParams,
+    setSearchParams,
+  ])
 
   const abrirEditar = (vehiculo) => {
     setVehiculoEditando(vehiculo)
@@ -411,7 +505,7 @@ const ListaVehiculos = () => {
           <div className="d-flex gap-2">
             <CButton
               color="primary"
-              onClick={abrirAgregar}
+              onClick={() => abrirAgregar()}
               disabled={cargando}
             >
               <CIcon icon={cilPlus} className="me-2" />

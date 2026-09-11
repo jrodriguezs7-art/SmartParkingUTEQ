@@ -5,6 +5,7 @@ import React, {
 } from 'react'
 
 import {
+  useNavigate,
   useSearchParams,
 } from 'react-router-dom'
 
@@ -28,6 +29,7 @@ import {
   cilCarAlt,
   cilMediaStop,
   cilMobile,
+  cilPlus,
   cilQrCode,
   cilReload,
 } from '@coreui/icons'
@@ -391,6 +393,13 @@ const MonitoreoEntrada = () => {
 
 const MonitoreoEntradaEscritorio =
   () => {
+    // ==================================================
+    // NAVEGACIÓN
+    // ==================================================
+
+    const navigate =
+      useNavigate()
+
     // ==================================================
     // VEHÍCULOS
     // ==================================================
@@ -1335,6 +1344,40 @@ const MonitoreoEntradaEscritorio =
 
         setErrorMovil(
           '',
+        )
+      }
+
+    // ==================================================
+    // REGISTRAR VEHÍCULO DETECTADO
+    // ==================================================
+
+    const irARegistrarVehiculo =
+      () => {
+        const placaDetectada =
+          resultado?.placa
+
+        if (
+          !placaDetectada ||
+          placaDetectada === '-'
+        ) {
+          setError(
+            'No existe una placa válida para registrar.',
+          )
+
+          return
+        }
+
+        const parametros =
+          new URLSearchParams({
+            agregar:
+              '1',
+
+            placa:
+              placaDetectada,
+          })
+
+        navigate(
+          `/parqueadero/vehiculos?${parametros.toString()}`,
         )
       }
 
@@ -2406,9 +2449,37 @@ const MonitoreoEntradaEscritorio =
                               Ingreso no autorizado
                             </strong>
 
-                            <div>
-                              La placa no existe en Supabase.
+                            <div className="mt-1">
+                              La placa
+                              {' '}
+                              <strong>
+                                {placa}
+                              </strong>
+                              {' '}
+                              no existe en Supabase.
                             </div>
+
+                            <div className="mt-2">
+                              ¿Desea agregar este vehículo a
+                              Vehículos y propietarios?
+                            </div>
+
+                            <CButton
+                              color="primary"
+                              className="mt-3"
+                              onClick={
+                                irARegistrarVehiculo
+                              }
+                            >
+                              <CIcon
+                                icon={
+                                  cilPlus
+                                }
+                                className="me-2"
+                              />
+
+                              Sí, agregar vehículo
+                            </CButton>
                           </CAlert>
                         )}
 
