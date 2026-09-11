@@ -16,13 +16,22 @@ import autoprefixer from 'autoprefixer'
 export default defineConfig(
   ({ mode }) => {
     // ==================================================
-    // CARGAR VARIABLES DE ENTORNO
+    // VARIABLES DE ENTORNO
+    // ==================================================
     //
-    // Se carga VITE_OCR_ENDPOINT únicamente
-    // dentro del servidor Vite.
+    // VITE_OCR_ENDPOINT es OPCIONAL.
     //
-    // El frontend ya NO utilizará directamente
-    // la URL de Azure.
+    // Actualmente el reconocimiento de placas utiliza
+    // Tesseract.js directamente desde el navegador.
+    //
+    // El proxy solamente se habilitará cuando exista:
+    //
+    // VITE_OCR_ENDPOINT
+    //
+    // Esto permite conservar compatibilidad con un
+    // servicio OCR externo en el futuro sin obligar
+    // a Azure Static Web Apps a tener esta variable.
+    //
     // ==================================================
 
     const env =
@@ -36,71 +45,74 @@ export default defineConfig(
       env.VITE_OCR_ENDPOINT
         ?.trim()
 
-    if (!ocrEndpoint) {
-      throw new Error(
-        'Falta VITE_OCR_ENDPOINT en el archivo .env.local',
-      )
-    }
-
     // ==================================================
-    // VALIDAR URL DEL ENDPOINT
+    // CONFIGURACIÓN OPCIONAL DEL PROXY OCR
     // ==================================================
 
-    let ocrUrl
+    let proxyOcr = {}
 
-    try {
-      ocrUrl =
-        new URL(
-          ocrEndpoint,
+    if (ocrEndpoint) {
+      try {
+        const ocrUrl =
+          new URL(
+            ocrEndpoint,
+          )
+
+        const ocrTarget =
+          `${ocrUrl.protocol}//${ocrUrl.host}`
+
+        const ocrPath =
+          `${ocrUrl.pathname}${ocrUrl.search}`
+
+        proxyOcr = {
+          '/ocr-api': {
+            target:
+              ocrTarget,
+
+            changeOrigin:
+              true,
+
+            secure:
+              true,
+
+            rewrite:
+              () =>
+                ocrPath,
+          },
+        }
+      } catch {
+        console.warn(
+          'VITE_OCR_ENDPOINT existe, pero no contiene una URL válida. El proxy OCR será deshabilitado.',
         )
-    } catch {
-      throw new Error(
-        'VITE_OCR_ENDPOINT no contiene una URL válida.',
-      )
+      }
     }
 
     // ==================================================
-    // ORIGEN AZURE
-    //
-    // Ejemplo:
-    //
-    // https://xxxxx.azurewebsites.net
+    // CONFIGURACIÓN PRINCIPAL
     // ==================================================
-
-    const ocrTarget =
-      `${ocrUrl.protocol}//${ocrUrl.host}`
-
-    // ==================================================
-    // RUTA REAL DE AZURE
-    //
-    // Aquí también se conserva:
-    //
-    // ?code=...
-    //
-    // Esta información se utiliza en el servidor Vite.
-    // ==================================================
-
-    const ocrPath =
-      `${ocrUrl.pathname}${ocrUrl.search}`
 
     return {
-      // =================================================
+      // ================================================
       // BASE
-      // =================================================
+      // ================================================
 
       base: './',
 
-      // =================================================
+      // ================================================
       // BUILD
-      // =================================================
+      //
+      // Azure Static Web Apps está configurado para
+      // publicar esta carpeta.
+      // ================================================
 
       build: {
-        outDir: 'build',
+        outDir:
+          'build',
       },
 
-      // =================================================
+      // ================================================
       // CSS
-      // =================================================
+      // ================================================
 
       css: {
         postcss: {
@@ -110,26 +122,27 @@ export default defineConfig(
         },
       },
 
-      // =================================================
+      // ================================================
       // REACT
-      // =================================================
+      // ================================================
 
       plugins: [
         react(),
       ],
 
-      // =================================================
-      // RESOLVE
-      // =================================================
+      // ================================================
+      // ALIAS Y EXTENSIONES
+      // ================================================
 
       resolve: {
         alias: [
           {
-            find: 'src/',
+            find:
+              'src/',
 
             replacement:
               `${path.resolve(
-                __dirname,
+                process.cwd(),
                 'src',
               )}/`,
           },
@@ -146,56 +159,25 @@ export default defineConfig(
         ],
       },
 
-      // =================================================
-      // SERVIDOR
-      // =================================================
+      // ================================================
+      // SERVIDOR DE DESARROLLO
+      // ================================================
 
       server: {
-        // Permite acceder desde el teléfono
-        // dentro de la misma red.
+        // Permite acceder desde otros dispositivos
+        // dentro de la misma red local.
 
         host:
           '0.0.0.0',
 
-        port: 3000,
+        port:
+          3000,
 
-        // ===============================================
-        // PROXY OCR
-        //
-        // TELÉFONO:
-        //
-        // POST /ocr-api
-        //
-        //          ↓
-        //
-        // VITE
-        //
-        //          ↓
-        //
-        // AZURE
-        // ===============================================
+        // El proxy solamente estará disponible
+        // cuando VITE_OCR_ENDPOINT exista.
 
-        proxy: {
-          '/ocr-api': {
-            target:
-              ocrTarget,
-
-            changeOrigin:
-              true,
-
-            secure:
-              true,
-
-            // ===========================================
-            // REEMPLAZAR /ocr-api POR LA RUTA REAL
-            // DE AZURE + SU CODE
-            // ===========================================
-
-            rewrite:
-              () =>
-                ocrPath,
-          },
-        },
+        proxy:
+          proxyOcr,
       },
     }
   },
