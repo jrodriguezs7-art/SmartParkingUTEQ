@@ -1173,7 +1173,7 @@ const MonitoreoEntradaEscritorio =
             generarTokenSesion()
 
           const url =
-            `${base}/#/parqueadero/monitoreo-entrada?movil=1&sesion=${encodeURIComponent(
+            `${base}/#/monitoreo-entrada-movil?sesion=${encodeURIComponent(
               token,
             )}`
 
@@ -1216,10 +1216,32 @@ const MonitoreoEntradaEscritorio =
                 'movil_conectado',
             },
 
-            () => {
+            async () => {
               setEstadoMovil(
                 'CONECTADO',
               )
+
+              // La PC confirma al teléfono que este QR
+              // todavía pertenece a una sesión activa.
+              // Si el QR es antiguo o la sesión ya fue
+              // cerrada, esta confirmación nunca llegará
+              // y la cámara del teléfono permanecerá bloqueada.
+              await canal.send({
+                type:
+                  'broadcast',
+
+                event:
+                  'sesion_confirmada',
+
+                payload: {
+                  activa:
+                    true,
+
+                  fecha:
+                    new Date()
+                      .toISOString(),
+                },
+              })
             },
           )
 
@@ -1320,14 +1342,51 @@ const MonitoreoEntradaEscritorio =
 
     const cerrarSesionMovil =
       async () => {
-        if (
+        const canal =
           canalMovilRef
             .current
-        ) {
+
+        if (canal) {
+          try {
+            // Primero avisamos al teléfono.
+            // El móvil detiene la cámara, invalida la sesión
+            // y sale de la interfaz de Smart Parking.
+            await canal.send({
+              type:
+                'broadcast',
+
+              event:
+                'sesion_cerrada',
+
+              payload: {
+                activa:
+                  false,
+
+                fecha:
+                  new Date()
+                    .toISOString(),
+              },
+            })
+
+            // Pequeña espera para permitir que el broadcast
+            // llegue antes de eliminar el canal Realtime.
+            await new Promise(
+              (resolve) =>
+                window.setTimeout(
+                  resolve,
+                  300,
+                ),
+            )
+          } catch (err) {
+            console.warn(
+              'No se pudo notificar el cierre al teléfono:',
+              err,
+            )
+          }
+
           await supabase
             .removeChannel(
-              canalMovilRef
-                .current,
+              canal,
             )
 
           canalMovilRef.current =
@@ -1453,10 +1512,35 @@ const MonitoreoEntradaEscritorio =
           canalMovilRef
             .current
         ) {
-          supabase.removeChannel(
+          const canal =
             canalMovilRef
-              .current,
-          )
+              .current
+
+          // Intentamos invalidar también el teléfono si la PC
+          // abandona esta pantalla sin pulsar el botón de cierre.
+          canal.send({
+            type:
+              'broadcast',
+
+            event:
+              'sesion_cerrada',
+
+            payload: {
+              activa:
+                false,
+
+              fecha:
+                new Date()
+                  .toISOString(),
+            },
+          }).finally(() => {
+            supabase.removeChannel(
+              canal,
+            )
+          })
+
+          canalMovilRef.current =
+            null
         }
       }
     }, [])

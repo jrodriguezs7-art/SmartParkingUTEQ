@@ -1,8 +1,14 @@
 import React, {
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
+
+import {
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom'
 
 import {
   CAlert,
@@ -10,10 +16,9 @@ import {
   CButton,
   CCard,
   CCardBody,
-  CCardHeader,
+  CCol,
   CContainer,
   CRow,
-  CCol,
   CSpinner,
 } from '@coreui/react'
 
@@ -22,7 +27,8 @@ import CIcon from '@coreui/icons-react'
 import {
   cilCamera,
   cilCarAlt,
-  cilReload,
+  cilMediaStop,
+  cilPlus,
 } from '@coreui/icons'
 
 import {
@@ -40,7 +46,7 @@ import {
 } from '../../../lib/supabase'
 
 // ======================================================
-// NORMALIZAR PLACA
+// UTILIDADES
 // ======================================================
 
 const normalizarPlaca = (
@@ -53,10 +59,6 @@ const normalizarPlaca = (
       '',
     )
 }
-
-// ======================================================
-// FORMATEAR PLACA
-// ======================================================
 
 const formatearPlaca = (
   valor = '',
@@ -93,13 +95,205 @@ const formatearPlaca = (
     .toUpperCase()
 }
 
+const numeroSeguro = (
+  valor,
+) => {
+  const numero =
+    Number(valor)
+
+  return Number.isFinite(
+    numero,
+  )
+    ? numero
+    : null
+}
+
+const limitar = (
+  valor,
+  minimo,
+  maximo,
+) => {
+  return Math.min(
+    Math.max(
+      valor,
+      minimo,
+    ),
+    maximo,
+  )
+}
+
+// ======================================================
+// CALCULAR RECTÁNGULO VERDE
+// ======================================================
+
+const calcularRectangulo = (
+  bbox,
+  dimensiones,
+  natural,
+) => {
+  if (!bbox) {
+    return null
+  }
+
+  const x =
+    numeroSeguro(
+      bbox.x,
+    )
+
+  const y =
+    numeroSeguro(
+      bbox.y,
+    )
+
+  const width =
+    numeroSeguro(
+      bbox.width,
+    )
+
+  const height =
+    numeroSeguro(
+      bbox.height,
+    )
+
+  if (
+    x === null ||
+    y === null ||
+    width === null ||
+    height === null ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    return null
+  }
+
+  // Coordenadas normalizadas 0..1
+  const normalizado =
+    x >= 0 &&
+    y >= 0 &&
+    width > 0 &&
+    height > 0 &&
+    x <= 1.05 &&
+    y <= 1.05 &&
+    width <= 1.05 &&
+    height <= 1.05
+
+  if (normalizado) {
+    const left =
+      limitar(
+        x * 100,
+        0,
+        100,
+      )
+
+    const top =
+      limitar(
+        y * 100,
+        0,
+        100,
+      )
+
+    return {
+      left,
+      top,
+      width:
+        limitar(
+          width * 100,
+          0,
+          100 - left,
+        ),
+      height:
+        limitar(
+          height * 100,
+          0,
+          100 - top,
+        ),
+    }
+  }
+
+  const anchoReferencia =
+    numeroSeguro(
+      dimensiones?.width,
+    ) ||
+    numeroSeguro(
+      natural?.width,
+    )
+
+  const altoReferencia =
+    numeroSeguro(
+      dimensiones?.height,
+    ) ||
+    numeroSeguro(
+      natural?.height,
+    )
+
+  if (
+    !anchoReferencia ||
+    !altoReferencia
+  ) {
+    return null
+  }
+
+  const left =
+    limitar(
+      (
+        x /
+        anchoReferencia
+      ) * 100,
+      0,
+      100,
+    )
+
+  const top =
+    limitar(
+      (
+        y /
+        altoReferencia
+      ) * 100,
+      0,
+      100,
+    )
+
+  return {
+    left,
+    top,
+    width:
+      limitar(
+        (
+          width /
+          anchoReferencia
+        ) * 100,
+        0,
+        100 - left,
+      ),
+    height:
+      limitar(
+        (
+          height /
+          altoReferencia
+        ) * 100,
+        0,
+        100 - top,
+      ),
+  }
+}
+
 // ======================================================
 // COMPONENTE MÓVIL
 // ======================================================
 
-const MonitoreoEntradaMovil = ({
-  sesion,
-}) => {
+const MonitoreoEntradaMovil = () => {
+  const navigate =
+    useNavigate()
+
+  const [
+    searchParams,
+  ] = useSearchParams()
+
+  const sesion =
+    searchParams.get(
+      'sesion',
+    ) || ''
+
   // ====================================================
   // VEHÍCULOS
   // ====================================================
@@ -108,6 +302,14 @@ const MonitoreoEntradaMovil = ({
     vehiculos,
   } = useVehiculos()
 
+  const vehiculosRef =
+    useRef([])
+
+  useEffect(() => {
+    vehiculosRef.current =
+      vehiculos
+  }, [vehiculos])
+
   // ====================================================
   // REFERENCIAS
   // ====================================================
@@ -115,7 +317,13 @@ const MonitoreoEntradaMovil = ({
   const canalRef =
     useRef(null)
 
-  const inputCamaraRef =
+  const videoRef =
+    useRef(null)
+
+  const canvasRef =
+    useRef(null)
+
+  const streamRef =
     useRef(null)
 
   const inputGaleriaRef =
@@ -124,14 +332,45 @@ const MonitoreoEntradaMovil = ({
   const previewUrlRef =
     useRef('')
 
+  const cerrandoRef =
+    useRef(false)
+
   // ====================================================
-  // ESTADOS
+  // ESTADOS DE SESIÓN
   // ====================================================
+
+  const [
+    canalListo,
+    setCanalListo,
+  ] = useState(false)
 
   const [
     conectado,
     setConectado,
   ] = useState(false)
+
+  const [
+    sesionCerrada,
+    setSesionCerrada,
+  ] = useState(false)
+
+  // ====================================================
+  // CÁMARA
+  // ====================================================
+
+  const [
+    camaraActiva,
+    setCamaraActiva,
+  ] = useState(false)
+
+  const [
+    iniciandoCamara,
+    setIniciandoCamara,
+  ] = useState(false)
+
+  // ====================================================
+  // IMAGEN
+  // ====================================================
 
   const [
     archivoImagen,
@@ -142,6 +381,18 @@ const MonitoreoEntradaMovil = ({
     previewImagen,
     setPreviewImagen,
   ] = useState('')
+
+  const [
+    dimensionesNaturales,
+    setDimensionesNaturales,
+  ] = useState({
+    width: 0,
+    height: 0,
+  })
+
+  // ====================================================
+  // RESULTADO
+  // ====================================================
 
   const [
     procesando,
@@ -159,7 +410,7 @@ const MonitoreoEntradaMovil = ({
   ] = useState('')
 
   // ====================================================
-  // BUSCAR VEHÍCULO LOCAL
+  // BUSCAR VEHÍCULO
   // ====================================================
 
   const buscarVehiculo =
@@ -169,18 +420,24 @@ const MonitoreoEntradaMovil = ({
           placa,
         )
 
+      if (!buscada) {
+        return null
+      }
+
       return (
-        vehiculos.find(
-          (vehiculo) =>
-            normalizarPlaca(
-              vehiculo.placa,
-            ) === buscada,
-        ) ?? null
+        vehiculosRef
+          .current
+          .find(
+            (vehiculo) =>
+              normalizarPlaca(
+                vehiculo.placa,
+              ) === buscada,
+          ) ?? null
       )
     }
 
   // ====================================================
-  // LIBERAR PREVIEW
+  // PREVIEW
   // ====================================================
 
   const liberarPreview =
@@ -198,74 +455,148 @@ const MonitoreoEntradaMovil = ({
     }
 
   // ====================================================
-  // ESTABLECER FOTOGRAFÍA
+  // DETENER STREAM DE CÁMARA
   // ====================================================
 
-  const establecerImagen =
-    (archivo) => {
-      try {
-        const validacion =
-          validarImagenOcr(
-            archivo,
+  const detenerStream =
+    () => {
+      if (
+        streamRef.current
+      ) {
+        streamRef.current
+          .getTracks()
+          .forEach(
+            (track) =>
+              track.stop(),
           )
 
-        if (!validacion.ok) {
-          throw new Error(
-            validacion.mensaje,
-          )
-        }
-
-        liberarPreview()
-
-        const url =
-          URL.createObjectURL(
-            archivo,
-          )
-
-        previewUrlRef.current =
-          url
-
-        setArchivoImagen(
-          archivo,
-        )
-
-        setPreviewImagen(
-          url,
-        )
-
-        setResultado(
-          null,
-        )
-
-        setError('')
-      } catch (err) {
-        setError(
-          err?.message ||
-            'La imagen no es válida.',
-        )
+        streamRef.current =
+          null
       }
+
+      if (
+        videoRef.current
+      ) {
+        videoRef.current.srcObject =
+          null
+      }
+
+      setCamaraActiva(
+        false,
+      )
     }
 
   // ====================================================
-  // SELECCIONAR IMAGEN
+  // LIMPIAR IMAGEN / RESULTADO
   // ====================================================
 
-  const seleccionarImagen =
-    (evento) => {
-      const archivo =
-        evento.target
-          .files?.[0]
+  const limpiarCaptura =
+    () => {
+      liberarPreview()
 
-      if (!archivo) {
+      setArchivoImagen(
+        null,
+      )
+
+      setPreviewImagen(
+        '',
+      )
+
+      setResultado(
+        null,
+      )
+
+      setDimensionesNaturales({
+        width: 0,
+        height: 0,
+      })
+
+      setError('')
+    }
+
+  // ====================================================
+  // FINALIZAR SESIÓN DESDE LA PC
+  // ====================================================
+
+  const finalizarSesion =
+    async () => {
+      if (
+        cerrandoRef.current
+      ) {
         return
       }
 
-      establecerImagen(
-        archivo,
+      cerrandoRef.current =
+        true
+
+      detenerStream()
+      liberarPreview()
+
+      setArchivoImagen(
+        null,
       )
 
-      evento.target.value =
-        ''
+      setPreviewImagen(
+        '',
+      )
+
+      setResultado(
+        null,
+      )
+
+      setConectado(
+        false,
+      )
+
+      setCanalListo(
+        false,
+      )
+
+      setProcesando(
+        false,
+      )
+
+      setSesionCerrada(
+        true,
+      )
+
+      setError('')
+
+      const canal =
+        canalRef.current
+
+      canalRef.current =
+        null
+
+      if (canal) {
+        try {
+          await supabase
+            .removeChannel(
+              canal,
+            )
+        } catch {
+          // No hacemos nada: la sesión ya está cerrada.
+        }
+      }
+
+      // Un navegador móvil no permite cerrar de forma fiable
+      // una pestaña abierta por el usuario/QR con window.close().
+      // La sustituimos por una página en blanco para sacar al
+      // teléfono de Smart Parking. Si vuelve atrás, el QR antiguo
+      // no recibirá una nueva confirmación desde la PC.
+      window.setTimeout(
+        () => {
+          try {
+            window.location.replace(
+              'about:blank',
+            )
+          } catch {
+            // Si el navegador no permite la redirección,
+            // queda visible la pantalla de sesión cerrada.
+          }
+        },
+        1600,
+      )
     }
 
   // ====================================================
@@ -274,12 +605,19 @@ const MonitoreoEntradaMovil = ({
 
   useEffect(() => {
     if (!sesion) {
+      setSesionCerrada(
+        true,
+      )
+
       setError(
         'La sesión QR no es válida.',
       )
 
       return undefined
     }
+
+    cerrandoRef.current =
+      false
 
     const canal =
       supabase.channel(
@@ -296,14 +634,56 @@ const MonitoreoEntradaMovil = ({
     canalRef.current =
       canal
 
+    // La PC confirma que este QR sigue vigente.
+    canal.on(
+      'broadcast',
+      {
+        event:
+          'sesion_confirmada',
+      },
+      () => {
+        if (
+          cerrandoRef.current
+        ) {
+          return
+        }
+
+        setConectado(
+          true,
+        )
+
+        setSesionCerrada(
+          false,
+        )
+
+        setError('')
+      },
+    )
+
+    // La PC cerró expresamente la sesión QR.
+    canal.on(
+      'broadcast',
+      {
+        event:
+          'sesion_cerrada',
+      },
+      () => {
+        finalizarSesion()
+      },
+    )
+
     canal.subscribe(
       async (estado) => {
         if (
           estado ===
           'SUBSCRIBED'
         ) {
-          setConectado(
+          setCanalListo(
             true,
+          )
+
+          setConectado(
+            false,
           )
 
           await canal.send({
@@ -326,10 +706,14 @@ const MonitoreoEntradaMovil = ({
 
         if (
           estado ===
-          'CHANNEL_ERROR' ||
+            'CHANNEL_ERROR' ||
           estado ===
-          'TIMED_OUT'
+            'TIMED_OUT'
         ) {
+          setCanalListo(
+            false,
+          )
+
           setConectado(
             false,
           )
@@ -342,6 +726,9 @@ const MonitoreoEntradaMovil = ({
     )
 
     return () => {
+      detenerStream()
+      liberarPreview()
+
       if (
         canalRef.current
       ) {
@@ -353,7 +740,318 @@ const MonitoreoEntradaMovil = ({
           null
       }
     }
-  }, [sesion])
+  }, [sesion]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ====================================================
+  // ACTIVAR CÁMARA
+  // ====================================================
+
+  const activarCamara =
+    async () => {
+      if (
+        !conectado ||
+        sesionCerrada
+      ) {
+        setError(
+          'La sesión QR no está activa.',
+        )
+
+        return
+      }
+
+      try {
+        setError('')
+        setIniciandoCamara(
+          true,
+        )
+
+        if (
+          !navigator
+            .mediaDevices ||
+          !navigator
+            .mediaDevices
+            .getUserMedia
+        ) {
+          throw new Error(
+            'El navegador no permite utilizar la cámara en vivo.',
+          )
+        }
+
+        detenerStream()
+        limpiarCaptura()
+
+        const stream =
+          await navigator
+            .mediaDevices
+            .getUserMedia({
+              video: {
+                facingMode: {
+                  ideal:
+                    'environment',
+                },
+
+                width: {
+                  ideal:
+                    1920,
+                },
+
+                height: {
+                  ideal:
+                    1080,
+                },
+              },
+
+              audio: false,
+            })
+
+        streamRef.current =
+          stream
+
+        if (
+          videoRef.current
+        ) {
+          videoRef.current.srcObject =
+            stream
+
+          await videoRef.current
+            .play()
+        }
+
+        setCamaraActiva(
+          true,
+        )
+      } catch (err) {
+        let mensaje =
+          err?.message ||
+          'No se pudo activar la cámara.'
+
+        if (
+          err?.name ===
+          'NotAllowedError'
+        ) {
+          mensaje =
+            'El permiso de la cámara fue rechazado.'
+        }
+
+        if (
+          err?.name ===
+          'NotFoundError'
+        ) {
+          mensaje =
+            'No se encontró una cámara disponible.'
+        }
+
+        setError(
+          mensaje,
+        )
+
+        detenerStream()
+      } finally {
+        setIniciandoCamara(
+          false,
+        )
+      }
+    }
+
+  // ====================================================
+  // DETENER CÁMARA
+  // ====================================================
+
+  const detenerCamara =
+    () => {
+      detenerStream()
+    }
+
+  // ====================================================
+  // ESTABLECER IMAGEN
+  // ====================================================
+
+  const establecerImagen =
+    (archivo) => {
+      const validacion =
+        validarImagenOcr(
+          archivo,
+        )
+
+      if (!validacion.ok) {
+        throw new Error(
+          validacion.mensaje,
+        )
+      }
+
+      liberarPreview()
+
+      const url =
+        URL.createObjectURL(
+          archivo,
+        )
+
+      previewUrlRef.current =
+        url
+
+      setArchivoImagen(
+        archivo,
+      )
+
+      setPreviewImagen(
+        url,
+      )
+
+      setResultado(
+        null,
+      )
+
+      setDimensionesNaturales({
+        width: 0,
+        height: 0,
+      })
+
+      setError('')
+    }
+
+  // ====================================================
+  // CAPTURAR FOTOGRAFÍA
+  // ====================================================
+
+  const capturarFotografia =
+    async () => {
+      try {
+        if (
+          !conectado ||
+          sesionCerrada
+        ) {
+          throw new Error(
+            'La sesión QR no está activa.',
+          )
+        }
+
+        const video =
+          videoRef.current
+
+        const canvas =
+          canvasRef.current
+
+        if (
+          !video ||
+          !canvas ||
+          !camaraActiva
+        ) {
+          throw new Error(
+            'Primero active la cámara.',
+          )
+        }
+
+        if (
+          !video.videoWidth ||
+          !video.videoHeight
+        ) {
+          throw new Error(
+            'La cámara todavía no está lista.',
+          )
+        }
+
+        canvas.width =
+          video.videoWidth
+
+        canvas.height =
+          video.videoHeight
+
+        const contexto =
+          canvas.getContext(
+            '2d',
+          )
+
+        contexto.drawImage(
+          video,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        )
+
+        const blob =
+          await new Promise(
+            (
+              resolve,
+              reject,
+            ) => {
+              canvas.toBlob(
+                (
+                  resultadoBlob,
+                ) => {
+                  if (
+                    resultadoBlob
+                  ) {
+                    resolve(
+                      resultadoBlob,
+                    )
+                  } else {
+                    reject(
+                      new Error(
+                        'No se pudo generar la fotografía.',
+                      ),
+                    )
+                  }
+                },
+                'image/jpeg',
+                0.92,
+              )
+            },
+          )
+
+        establecerImagen(
+          blob,
+        )
+
+        // Liberamos la cámara después de la captura para
+        // evitar que siga consumiendo batería en segundo plano.
+        detenerStream()
+      } catch (err) {
+        setError(
+          err?.message ||
+          'No se pudo capturar la fotografía.',
+        )
+      }
+    }
+
+  // ====================================================
+  // SELECCIONAR IMAGEN
+  // ====================================================
+
+  const seleccionarImagen =
+    (evento) => {
+      const archivo =
+        evento.target
+          .files?.[0]
+
+      if (!archivo) {
+        return
+      }
+
+      try {
+        if (
+          !conectado ||
+          sesionCerrada
+        ) {
+          throw new Error(
+            'La sesión QR no está activa.',
+          )
+        }
+
+        detenerStream()
+        establecerImagen(
+          archivo,
+        )
+      } catch (err) {
+        setError(
+          err?.message ||
+          'La imagen no es válida.',
+        )
+      } finally {
+        evento.target.value =
+          ''
+      }
+    }
 
   // ====================================================
   // DETECTAR PLACA
@@ -361,17 +1059,20 @@ const MonitoreoEntradaMovil = ({
 
   const detectarPlaca =
     async () => {
-      if (!archivoImagen) {
+      if (
+        !conectado ||
+        sesionCerrada
+      ) {
         setError(
-          'Primero tome o seleccione una fotografía.',
+          'La sesión QR no está activa.',
         )
 
         return
       }
 
-      if (!conectado) {
+      if (!archivoImagen) {
         setError(
-          'No existe conexión con la PC.',
+          'Capture o seleccione una fotografía.',
         )
 
         return
@@ -388,10 +1089,6 @@ const MonitoreoEntradaMovil = ({
 
         setError('')
 
-        // =============================================
-        // API AZURE
-        // =============================================
-
         const respuesta =
           await detectarPlacaApi(
             archivoImagen,
@@ -407,10 +1104,6 @@ const MonitoreoEntradaMovil = ({
             normalizado.placa,
           )
 
-        // =============================================
-        // COMPLETAR VEHÍCULO
-        // =============================================
-
         const vehiculoLocal =
           placa
             ? buscarVehiculo(
@@ -419,7 +1112,8 @@ const MonitoreoEntradaMovil = ({
             : null
 
         let vehiculo =
-          normalizado.vehiculo
+          normalizado.vehiculo ||
+          null
 
         if (
           normalizado
@@ -436,40 +1130,30 @@ const MonitoreoEntradaMovil = ({
         const encontrado =
           normalizado
             .vehiculoEncontrado !==
-          null
-            ? normalizado
-                .vehiculoEncontrado
+            null &&
+          normalizado
+            .vehiculoEncontrado !==
+            undefined
+            ? Boolean(
+                normalizado
+                  .vehiculoEncontrado,
+              )
             : Boolean(
                 vehiculo,
               )
 
         const resultadoFinal = {
-          estado:
-            normalizado.estado,
+          ...normalizado,
 
           placa,
-
-          confianza:
-            normalizado.confianza,
 
           vehiculoEncontrado:
             encontrado,
 
           vehiculo,
 
-          imagenMarcada:
-            normalizado
-              .imagenMarcada,
-
-          bbox:
-            normalizado.bbox,
-
-          dimensiones:
-            normalizado
-              .dimensiones,
-
-          mensaje:
-            normalizado.mensaje,
+          origen:
+            'telefono',
 
           apiOk:
             true,
@@ -478,13 +1162,6 @@ const MonitoreoEntradaMovil = ({
         setResultado(
           resultadoFinal,
         )
-
-        // =============================================
-        // ENVIAR RESULTADO A PC
-        //
-        // La imagen Base64 solamente se envía si
-        // no es excesivamente grande.
-        // =============================================
 
         let imagenParaPc =
           normalizado
@@ -495,7 +1172,8 @@ const MonitoreoEntradaMovil = ({
           imagenParaPc.length >
           450000
         ) {
-          imagenParaPc = ''
+          imagenParaPc =
+            ''
         }
 
         await canalRef.current
@@ -511,9 +1189,6 @@ const MonitoreoEntradaMovil = ({
 
               imagenMarcada:
                 imagenParaPc,
-
-              origen:
-                'telefono',
             },
           })
       } catch (err) {
@@ -524,7 +1199,7 @@ const MonitoreoEntradaMovil = ({
 
         setError(
           err?.message ||
-            'No se pudo procesar la fotografía.',
+          'No se pudo procesar la fotografía.',
         )
       } finally {
         setProcesando(
@@ -534,40 +1209,37 @@ const MonitoreoEntradaMovil = ({
     }
 
   // ====================================================
-  // LIMPIAR
+  // IR A REGISTRAR VEHÍCULO
   // ====================================================
 
-  const limpiar =
+  const irARegistrarVehiculo =
     () => {
-      liberarPreview()
+      const parametros =
+        new URLSearchParams({
+          agregar:
+            '1',
+        })
 
-      setArchivoImagen(
-        null,
+      if (
+        resultado?.placa &&
+        resultado.placa !== '-'
+      ) {
+        parametros.set(
+          'placa',
+          resultado.placa,
+        )
+      }
+
+      // El componente ListaVehiculos ya abre automáticamente
+      // el formulario cuando recibe agregar=1. Si existe una
+      // placa reconocida también la precarga.
+      navigate(
+        `/parqueadero/vehiculos?${parametros.toString()}`,
       )
-
-      setPreviewImagen(
-        '',
-      )
-
-      setResultado(
-        null,
-      )
-
-      setError('')
     }
 
   // ====================================================
-  // LIMPIEZA
-  // ====================================================
-
-  useEffect(() => {
-    return () => {
-      liberarPreview()
-    }
-  }, [])
-
-  // ====================================================
-  // DATOS RESULTADO
+  // DATOS DEL RESULTADO
   // ====================================================
 
   const placa =
@@ -592,8 +1264,63 @@ const MonitoreoEntradaMovil = ({
   const vehiculo =
     resultado?.vehiculo
 
+  const rectangulo =
+    useMemo(
+      () =>
+        calcularRectangulo(
+          resultado?.bbox,
+          resultado?.dimensiones,
+          dimensionesNaturales,
+        ),
+      [
+        resultado?.bbox,
+        resultado?.dimensiones,
+        dimensionesNaturales,
+      ],
+    )
+
   // ====================================================
-  // INTERFAZ
+  // SESIÓN CERRADA
+  // ====================================================
+
+  if (sesionCerrada) {
+    return (
+      <div
+        className="d-flex align-items-center justify-content-center p-4"
+        style={{
+          minHeight:
+            '100vh',
+          backgroundColor:
+            '#0d1117',
+        }}
+      >
+        <div
+          className="text-center"
+          style={{
+            maxWidth:
+              '420px',
+          }}
+        >
+          <CIcon
+            icon={cilMediaStop}
+            size="4xl"
+            className="text-danger mb-3"
+          />
+
+          <h3 className="text-white">
+            Sesión finalizada
+          </h3>
+
+          <p className="text-body-secondary mb-0">
+            La sesión QR fue cerrada desde la PC. La cámara ya no puede utilizarse con este código QR.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // ====================================================
+  // INTERFAZ MÓVIL LIMPIA
   // ====================================================
 
   return (
@@ -601,50 +1328,49 @@ const MonitoreoEntradaMovil = ({
       style={{
         minHeight:
           '100vh',
-
+        backgroundColor:
+          '#0d1117',
         paddingTop:
-          '20px',
-
+          '16px',
         paddingBottom:
-          '40px',
+          '30px',
       }}
     >
-      <CContainer>
+      <CContainer
+        style={{
+          maxWidth:
+            '620px',
+        }}
+      >
         {/* ============================================
-            CABECERA
+            ESTADO DE CONEXIÓN
         ============================================ */}
 
-        <CCard className="mb-3">
-          <CCardHeader>
-            <div className="d-flex justify-content-between align-items-center gap-2">
-              <strong>
-                Monitoreo de entrada
-              </strong>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h4 className="mb-0 text-white">
+              Escáner de entrada
+            </h4>
 
-              <CBadge
-                color={
-                  conectado
-                    ? 'success'
-                    : 'danger'
-                }
-              >
-                {conectado
-                  ? 'Conectado'
-                  : 'Sin conexión'}
-              </CBadge>
-            </div>
-          </CCardHeader>
+            <small className="text-body-secondary">
+              Cámara del teléfono
+            </small>
+          </div>
 
-          <CCardBody>
-            Tome una fotografía del vehículo completo.
-            El sistema localizará automáticamente la
-            matrícula.
-          </CCardBody>
-        </CCard>
-
-        {/* ============================================
-            ERROR
-        ============================================ */}
+          <CBadge
+            color={
+              conectado
+                ? 'success'
+                : 'warning'
+            }
+          >
+            {conectado
+              ? 'Sesión activa'
+              : canalListo
+                ? 'Esperando PC'
+                : 'Conectando'}
+          </CBadge>
+        </div>
 
         {error && (
           <CAlert
@@ -658,240 +1384,319 @@ const MonitoreoEntradaMovil = ({
           </CAlert>
         )}
 
+        {/* Inputs ocultos */}
+
+        <input
+          ref={inputGaleriaRef}
+          type="file"
+          accept="image/jpeg,image/png,image/*"
+          onChange={seleccionarImagen}
+          style={{
+            display:
+              'none',
+          }}
+        />
+
+        <canvas
+          ref={canvasRef}
+          style={{
+            display:
+              'none',
+          }}
+        />
+
         {/* ============================================
-            CAPTURA
+            CÁMARA / PREVIEW
         ============================================ */}
 
         <CCard className="mb-3">
-          <CCardHeader>
-            <CIcon
-              icon={cilCamera}
-              className="me-2"
-            />
-
-            <strong>
-              Fotografía del vehículo
-            </strong>
-          </CCardHeader>
-
-          <CCardBody>
-            {/* ========================================
-                INPUT CÁMARA NATIVA
-            ======================================== */}
-
-            <input
-              ref={
-                inputCamaraRef
-              }
-              type="file"
-              accept="image/jpeg,image/png,image/*"
-              capture="environment"
-              onChange={
-                seleccionarImagen
-              }
-              style={{
-                display:
-                  'none',
-              }}
-            />
-
-            {/* ========================================
-                INPUT GALERÍA
-            ======================================== */}
-
-            <input
-              ref={
-                inputGaleriaRef
-              }
-              type="file"
-              accept="image/jpeg,image/png"
-              onChange={
-                seleccionarImagen
-              }
-              style={{
-                display:
-                  'none',
-              }}
-            />
-
-            {/* ========================================
-                PREVIEW
-            ======================================== */}
-
-            {previewImagen ? (
-              <img
-                src={
-                  resultado
-                    ?.imagenMarcada ||
-                  previewImagen
-                }
-                alt="Vehículo"
-                className="img-fluid rounded border w-100 mb-3"
-                style={{
-                  maxHeight:
-                    '550px',
-
-                  objectFit:
-                    'contain',
-                }}
-              />
-            ) : (
+          <CCardBody className="p-2">
+            {!previewImagen && (
               <div
-                className="d-flex flex-column justify-content-center align-items-center text-center border rounded mb-3"
+                className="position-relative overflow-hidden rounded"
                 style={{
-                  minHeight:
-                    '340px',
+                  width:
+                    '100%',
+                  aspectRatio:
+                    '3 / 4',
+                  maxHeight:
+                    '62vh',
+                  backgroundColor:
+                    '#05070a',
                 }}
               >
-                <CIcon
-                  icon={cilCamera}
-                  size="4xl"
-                  className="text-body-secondary mb-3"
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  style={{
+                    width:
+                      '100%',
+                    height:
+                      '100%',
+                    objectFit:
+                      'cover',
+                    display:
+                      camaraActiva
+                        ? 'block'
+                        : 'none',
+                  }}
                 />
 
-                <h5>
-                  Sin fotografía
-                </h5>
+                {!camaraActiva && (
+                  <div className="position-absolute top-50 start-50 translate-middle text-center w-100 px-3">
+                    <CIcon
+                      icon={cilCamera}
+                      size="4xl"
+                      className="text-body-secondary mb-3"
+                    />
 
-                <div className="text-body-secondary px-3">
-                  Tome una fotografía del automóvil
-                  completo.
-                </div>
+                    <div className="text-body-secondary">
+                      Active la cámara o seleccione una imagen.
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* ========================================
-                BOTONES
-            ======================================== */}
-
-            {!resultado && (
-              <div className="d-grid gap-2">
-                <CButton
-                  color="success"
-                  size="lg"
-                  disabled={
-                    procesando
-                  }
-                  onClick={() =>
-                    inputCamaraRef
-                      .current
-                      ?.click()
-                  }
-                >
-                  <CIcon
-                    icon={cilCamera}
-                    className="me-2"
-                  />
-
-                  Tomar fotografía
-                </CButton>
-
-                <CButton
-                  color="secondary"
-                  variant="outline"
-                  disabled={
-                    procesando
-                  }
-                  onClick={() =>
-                    inputGaleriaRef
-                      .current
-                      ?.click()
-                  }
-                >
-                  Seleccionar de galería
-                </CButton>
-
-                <CButton
-                  color="primary"
-                  size="lg"
-                  disabled={
-                    !archivoImagen ||
-                    procesando ||
-                    !conectado
-                  }
-                  onClick={
-                    detectarPlaca
-                  }
-                >
-                  {procesando ? (
-                    <>
-                      <CSpinner
-                        size="sm"
-                        className="me-2"
-                      />
-
-                      Procesando...
-                    </>
-                  ) : (
-                    <>
-                      <CIcon
-                        icon={cilCarAlt}
-                        className="me-2"
-                      />
-
-                      Detectar placa
-                    </>
-                  )}
-                </CButton>
-              </div>
-            )}
-
-            {resultado && (
-              <CButton
-                color="success"
-                className="w-100"
-                size="lg"
-                onClick={
-                  limpiar
-                }
+            {previewImagen && (
+              <div
+                style={{
+                  position:
+                    'relative',
+                  width:
+                    '100%',
+                  lineHeight:
+                    0,
+                }}
               >
-                <CIcon
-                  icon={cilReload}
-                  className="me-2"
+                <img
+                  src={
+                    resultado
+                      ?.imagenMarcada ||
+                    previewImagen
+                  }
+                  alt="Vehículo"
+                  className="rounded w-100"
+                  onLoad={(
+                    evento,
+                  ) => {
+                    setDimensionesNaturales({
+                      width:
+                        evento
+                          .currentTarget
+                          .naturalWidth,
+                      height:
+                        evento
+                          .currentTarget
+                          .naturalHeight,
+                    })
+                  }}
+                  style={{
+                    display:
+                      'block',
+                    width:
+                      '100%',
+                    height:
+                      'auto',
+                    maxHeight:
+                      '62vh',
+                    objectFit:
+                      'contain',
+                  }}
                 />
 
-                Nueva captura
-              </CButton>
+                {!resultado?.imagenMarcada &&
+                  rectangulo && (
+                    <div
+                      style={{
+                        position:
+                          'absolute',
+                        left:
+                          `${rectangulo.left}%`,
+                        top:
+                          `${rectangulo.top}%`,
+                        width:
+                          `${rectangulo.width}%`,
+                        height:
+                          `${rectangulo.height}%`,
+                        border:
+                          '3px solid #00d26a',
+                        borderRadius:
+                          '3px',
+                        boxShadow:
+                          '0 0 0 1px rgba(0,0,0,.55), 0 0 8px rgba(0,210,106,.65)',
+                        pointerEvents:
+                          'none',
+                        boxSizing:
+                          'border-box',
+                        zIndex:
+                          5,
+                      }}
+                    />
+                  )}
+              </div>
             )}
           </CCardBody>
         </CCard>
 
         {/* ============================================
-            RESULTADO MÓVIL
+            SOLO LOS CONTROLES NECESARIOS
+        ============================================ */}
+
+        <div className="d-grid gap-2 mb-3">
+          <CButton
+            color="success"
+            size="lg"
+            disabled={
+              !conectado ||
+              iniciandoCamara ||
+              camaraActiva ||
+              procesando
+            }
+            onClick={activarCamara}
+          >
+            <CIcon
+              icon={cilCamera}
+              className="me-2"
+            />
+
+            {iniciandoCamara
+              ? 'Activando cámara...'
+              : 'Activar cámara'}
+          </CButton>
+
+          <CButton
+            color="primary"
+            size="lg"
+            disabled={
+              !conectado ||
+              !camaraActiva ||
+              procesando
+            }
+            onClick={capturarFotografia}
+          >
+            Capturar fotografía
+          </CButton>
+
+          <CButton
+            color="danger"
+            variant="outline"
+            size="lg"
+            disabled={
+              !camaraActiva ||
+              procesando
+            }
+            onClick={detenerCamara}
+          >
+            <CIcon
+              icon={cilMediaStop}
+              className="me-2"
+            />
+
+            Detener cámara
+          </CButton>
+
+          <CButton
+            color="secondary"
+            variant="outline"
+            size="lg"
+            disabled={
+              !conectado ||
+              procesando
+            }
+            onClick={() => {
+              detenerStream()
+              inputGaleriaRef
+                .current
+                ?.click()
+            }}
+          >
+            Seleccionar imagen
+          </CButton>
+
+          <CButton
+            color="success"
+            size="lg"
+            disabled={
+              !conectado ||
+              !archivoImagen ||
+              procesando
+            }
+            onClick={detectarPlaca}
+          >
+            {procesando ? (
+              <>
+                <CSpinner
+                  size="sm"
+                  className="me-2"
+                />
+
+                Detectando...
+              </>
+            ) : (
+              <>
+                <CIcon
+                  icon={cilCarAlt}
+                  className="me-2"
+                />
+
+                Detectar placa
+              </>
+            )}
+          </CButton>
+        </div>
+
+        {/* ============================================
+            RESULTADO COMPACTO
         ============================================ */}
 
         {resultado && (
           <CCard>
-            <CCardHeader>
-              <strong>
-                Resultado
-              </strong>
-            </CCardHeader>
-
             <CCardBody>
               {encontrado ? (
-                <CAlert color="success">
-                  VEHÍCULO REGISTRADO
+                <CAlert
+                  color="success"
+                  className="text-center"
+                >
+                  <strong>
+                    VEHÍCULO REGISTRADO
+                  </strong>
+                </CAlert>
+              ) : placa !== '-' ? (
+                <CAlert
+                  color="danger"
+                  className="text-center"
+                >
+                  <strong>
+                    VEHÍCULO NO REGISTRADO
+                  </strong>
                 </CAlert>
               ) : (
-                <CAlert color="danger">
-                  VEHÍCULO NO REGISTRADO
+                <CAlert
+                  color="warning"
+                  className="text-center"
+                >
+                  <strong>
+                    PLACA NO DETECTADA
+                  </strong>
                 </CAlert>
               )}
 
               <CRow className="g-3">
                 <CCol xs={6}>
-                  <div className="text-body-secondary">
+                  <div className="small text-body-secondary">
                     Placa
                   </div>
 
-                  <h4>
+                  <strong>
                     {placa}
-                  </h4>
+                  </strong>
                 </CCol>
 
                 <CCol xs={6}>
-                  <div className="text-body-secondary">
+                  <div className="small text-body-secondary">
                     Confianza OCR
                   </div>
 
@@ -903,79 +1708,70 @@ const MonitoreoEntradaMovil = ({
 
               {encontrado &&
                 vehiculo && (
-                  <>
-                    <hr />
+                  <div className="border rounded p-3 mt-3">
+                    <strong>
+                      {vehiculo.marca || '-'}{' '}
+                      {vehiculo.modelo || ''}
+                    </strong>
 
-                    <h5>
-                      Datos del vehículo
-                    </h5>
-
-                    <CRow className="g-3 mt-1">
-                      <CCol xs={6}>
-                        <div className="text-body-secondary">
-                          Marca
-                        </div>
-
-                        <strong>
-                          {vehiculo.marca ||
-                            '-'}
-                        </strong>
-                      </CCol>
-
-                      <CCol xs={6}>
-                        <div className="text-body-secondary">
-                          Modelo
-                        </div>
-
-                        <strong>
-                          {vehiculo.modelo ||
-                            '-'}
-                        </strong>
-                      </CCol>
-
-                      <CCol xs={12}>
-                        <div className="text-body-secondary">
-                          Propietario
-                        </div>
-
-                        <strong>
-                          {vehiculo
-                            .propietario_nombre ||
-                            '-'}
-                        </strong>
-                      </CCol>
-                    </CRow>
-
-                    {vehiculo.foto_url && (
-                      <img
-                        src={
-                          vehiculo.foto_url
-                        }
-                        alt="Vehículo registrado"
-                        className="img-fluid rounded border w-100 mt-3"
-                      />
-                    )}
-
-                    {vehiculo
-                      .foto_propietario_url && (
-                      <img
-                        src={
-                          vehiculo
-                            .foto_propietario_url
-                        }
-                        alt="Propietario"
-                        className="img-fluid rounded border w-100 mt-3"
-                        style={{
-                          maxHeight:
-                            '350px',
-
-                          objectFit:
-                            'contain',
-                        }}
-                      />
-                    )}
-                  </>
+                    <div className="small text-body-secondary mt-1">
+                      {vehiculo.propietario_nombre || '-'}
+                    </div>
+                  </div>
                 )}
+
+              {!encontrado && (
+                <div className="mt-3">
+                  {placa !== '-' ? (
+                    <>
+                      <p className="mb-2">
+                        La placa <strong>{placa}</strong> no existe en Supabase. ¿Desea registrarla?
+                      </p>
+
+                      <CButton
+                        color="primary"
+                        className="w-100"
+                        onClick={irARegistrarVehiculo}
+                      >
+                        <CIcon
+                          icon={cilPlus}
+                          className="me-2"
+                        />
+
+                        Agregar vehículo
+                      </CButton>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mb-2">
+                        El OCR no pudo obtener una placa. Puede abrir el formulario y escribirla manualmente.
+                      </p>
+
+                      <CButton
+                        color="primary"
+                        className="w-100"
+                        onClick={irARegistrarVehiculo}
+                      >
+                        <CIcon
+                          icon={cilPlus}
+                          className="me-2"
+                        />
+
+                        Registrar manualmente
+                      </CButton>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <CButton
+                color="secondary"
+                variant="outline"
+                className="w-100 mt-3"
+                onClick={limpiarCaptura}
+              >
+                Limpiar resultado
+              </CButton>
             </CCardBody>
           </CCard>
         )}
