@@ -103,6 +103,213 @@ const formatearPlaca = (
     .toUpperCase()
 }
 
+
+// ======================================================
+// RECTÁNGULO DE LA PLACA DETECTADA
+// ======================================================
+
+const convertirNumeroSeguro =
+  (valor) => {
+    const numero =
+      Number(valor)
+
+    return Number.isFinite(
+      numero,
+    )
+      ? numero
+      : null
+  }
+
+const limitarNumero =
+  (
+    valor,
+    minimo,
+    maximo,
+  ) => {
+    return Math.min(
+      Math.max(
+        valor,
+        minimo,
+      ),
+      maximo,
+    )
+  }
+
+const calcularRectanguloPlaca =
+  (
+    bbox,
+    dimensiones,
+    dimensionesNaturales,
+  ) => {
+    if (!bbox) {
+      return null
+    }
+
+    const x =
+      convertirNumeroSeguro(
+        bbox.x,
+      )
+
+    const y =
+      convertirNumeroSeguro(
+        bbox.y,
+      )
+
+    const width =
+      convertirNumeroSeguro(
+        bbox.width,
+      )
+
+    const height =
+      convertirNumeroSeguro(
+        bbox.height,
+      )
+
+    if (
+      x === null ||
+      y === null ||
+      width === null ||
+      height === null ||
+      width <= 0 ||
+      height <= 0
+    ) {
+      return null
+    }
+
+    // ==================================================
+    // BBOX NORMALIZADO ENTRE 0 Y 1
+    // ==================================================
+
+    const esNormalizado =
+      x >= 0 &&
+      y >= 0 &&
+      width > 0 &&
+      height > 0 &&
+      x <= 1.01 &&
+      y <= 1.01 &&
+      width <= 1.01 &&
+      height <= 1.01
+
+    if (esNormalizado) {
+      const left =
+        limitarNumero(
+          x * 100,
+          0,
+          100,
+        )
+
+      const top =
+        limitarNumero(
+          y * 100,
+          0,
+          100,
+        )
+
+      const ancho =
+        limitarNumero(
+          width * 100,
+          0,
+          100 - left,
+        )
+
+      const alto =
+        limitarNumero(
+          height * 100,
+          0,
+          100 - top,
+        )
+
+      return {
+        left,
+        top,
+        width:
+          ancho,
+        height:
+          alto,
+      }
+    }
+
+    // ==================================================
+    // BBOX EN PÍXELES
+    // ==================================================
+
+    const anchoReferencia =
+      convertirNumeroSeguro(
+        dimensiones
+          ?.width,
+      ) ||
+      convertirNumeroSeguro(
+        dimensionesNaturales
+          ?.width,
+      )
+
+    const altoReferencia =
+      convertirNumeroSeguro(
+        dimensiones
+          ?.height,
+      ) ||
+      convertirNumeroSeguro(
+        dimensionesNaturales
+          ?.height,
+      )
+
+    if (
+      !anchoReferencia ||
+      !altoReferencia
+    ) {
+      return null
+    }
+
+    const left =
+      limitarNumero(
+        (
+          x /
+          anchoReferencia
+        ) * 100,
+        0,
+        100,
+      )
+
+    const top =
+      limitarNumero(
+        (
+          y /
+          altoReferencia
+        ) * 100,
+        0,
+        100,
+      )
+
+    const ancho =
+      limitarNumero(
+        (
+          width /
+          anchoReferencia
+        ) * 100,
+        0,
+        100 - left,
+      )
+
+    const alto =
+      limitarNumero(
+        (
+          height /
+          altoReferencia
+        ) * 100,
+        0,
+        100 - top,
+      )
+
+    return {
+      left,
+      top,
+      width:
+        ancho,
+      height:
+        alto,
+    }
+  }
+
 // ======================================================
 // GENERAR SESIÓN QR
 // ======================================================
@@ -268,6 +475,18 @@ const MonitoreoEntradaEscritorio =
       origenImagen,
       setOrigenImagen,
     ] = useState('')
+
+    // ==================================================
+    // DIMENSIONES NATURALES DE LA IMAGEN
+    // ==================================================
+
+    const [
+      dimensionesNaturales,
+      setDimensionesNaturales,
+    ] = useState({
+      width: 0,
+      height: 0,
+    })
 
     // ==================================================
     // RESULTADO
@@ -488,6 +707,11 @@ const MonitoreoEntradaEscritorio =
           origen,
         )
 
+        setDimensionesNaturales({
+          width: 0,
+          height: 0,
+        })
+
         setResultado(
           null,
         )
@@ -576,6 +800,11 @@ const MonitoreoEntradaEscritorio =
           setOrigenImagen(
             '',
           )
+
+          setDimensionesNaturales({
+            width: 0,
+            height: 0,
+          })
 
           setResultado(
             null,
@@ -1138,6 +1367,11 @@ const MonitoreoEntradaEscritorio =
           '',
         )
 
+        setDimensionesNaturales({
+          width: 0,
+          height: 0,
+        })
+
         setResultado(
           null,
         )
@@ -1277,6 +1511,17 @@ const MonitoreoEntradaEscritorio =
 
     const autorizado =
       vehiculo?.autorizado
+
+    // ==================================================
+    // RECTÁNGULO VISUAL DE LA PLACA
+    // ==================================================
+
+    const rectanguloPlaca =
+      calcularRectanguloPlaca(
+        resultado?.bbox,
+        resultado?.dimensiones,
+        dimensionesNaturales,
+      )
 
     // ==================================================
     // INTERFAZ
@@ -1475,26 +1720,133 @@ const MonitoreoEntradaEscritorio =
                       />
                     ) : previewImagen ? (
                       <div className="mb-3">
-                        <img
-                          src={
-                            previewImagen
-                          }
-                          alt="Vehículo"
-                          className="img-fluid rounded border w-100"
-                          style={{
-                            maxHeight:
-                              '580px',
+                        {/* ============================
+                            IMAGEN + BBOX VERDE
+                        ============================ */}
 
-                            objectFit:
-                              'contain',
-                          }}
-                        />
+                        <div className="d-flex justify-content-center">
+                          <div
+                            style={{
+                              position:
+                                'relative',
+
+                              display:
+                                'inline-block',
+
+                              maxWidth:
+                                '100%',
+
+                              lineHeight:
+                                0,
+                            }}
+                          >
+                            <img
+                              src={
+                                previewImagen
+                              }
+                              alt="Vehículo"
+                              className="rounded border"
+                              onLoad={(
+                                evento,
+                              ) => {
+                                const imagen =
+                                  evento
+                                    .currentTarget
+
+                                setDimensionesNaturales({
+                                  width:
+                                    imagen
+                                      .naturalWidth,
+
+                                  height:
+                                    imagen
+                                      .naturalHeight,
+                                })
+                              }}
+                              style={{
+                                display:
+                                  'block',
+
+                                maxWidth:
+                                  '100%',
+
+                                maxHeight:
+                                  '580px',
+
+                                width:
+                                  'auto',
+
+                                height:
+                                  'auto',
+
+                                objectFit:
+                                  'contain',
+                              }}
+                            />
+
+                            {/* ========================
+                                RECTÁNGULO VERDE
+                                DE LA PLACA DETECTADA
+                            ======================== */}
+
+                            {resultado
+                              ?.bbox &&
+                              rectanguloPlaca && (
+                                <div
+                                  title={
+                                    resultado
+                                      ?.placa
+                                      ? `Placa detectada: ${resultado.placa}`
+                                      : 'Placa detectada'
+                                  }
+                                  style={{
+                                    position:
+                                      'absolute',
+
+                                    left:
+                                      `${rectanguloPlaca.left}%`,
+
+                                    top:
+                                      `${rectanguloPlaca.top}%`,
+
+                                    width:
+                                      `${rectanguloPlaca.width}%`,
+
+                                    height:
+                                      `${rectanguloPlaca.height}%`,
+
+                                    border:
+                                      '3px solid #00d26a',
+
+                                    borderRadius:
+                                      '3px',
+
+                                    boxShadow:
+                                      '0 0 0 1px rgba(0, 0, 0, 0.50), 0 0 8px rgba(0, 210, 106, 0.75)',
+
+                                    boxSizing:
+                                      'border-box',
+
+                                    pointerEvents:
+                                      'none',
+
+                                    zIndex:
+                                      10,
+                                  }}
+                                />
+                              )}
+                          </div>
+                        </div>
 
                         <div className="text-body-secondary mt-2">
-                          {origenImagen ===
-                          'CAMARA'
-                            ? 'Fotografía capturada desde la cámara.'
-                            : 'Imagen seleccionada desde el dispositivo.'}
+                          {resultado
+                            ?.bbox &&
+                          rectanguloPlaca
+                            ? 'Placa localizada automáticamente.'
+                            : origenImagen ===
+                                'CAMARA'
+                              ? 'Fotografía capturada desde la cámara.'
+                              : 'Imagen seleccionada desde el dispositivo.'}
                         </div>
                       </div>
                     ) : (
