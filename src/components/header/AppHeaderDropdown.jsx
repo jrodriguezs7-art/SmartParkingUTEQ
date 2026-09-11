@@ -1,92 +1,171 @@
 import React from 'react'
+
 import {
   CAvatar,
-  CBadge,
   CDropdown,
-  CDropdownDivider,
-  CDropdownHeader,
   CDropdownItem,
   CDropdownMenu,
   CDropdownToggle,
+  useColorModes,
 } from '@coreui/react'
+
 import {
-  cilBell,
-  cilCreditCard,
-  cilCommentSquare,
-  cilEnvelopeOpen,
-  cilFile,
-  cilLockLocked,
-  cilSettings,
-  cilTask,
-  cilUser,
+  cilContrast,
+  cilMoon,
+  cilSun,
 } from '@coreui/icons'
+
 import CIcon from '@coreui/icons-react'
 
 import avatar8 from './../../assets/images/avatars/8.jpg'
 
+// ======================================================
+// MENÚ DEL AVATAR
+//
+// Al pulsar el avatar únicamente aparecen:
+//
+// - Light
+// - Dark
+// - Auto
+//
+// Se eliminaron las opciones originales:
+//
+// - Updates
+// - Messages
+// - Tasks
+// - Comments
+// - Profile
+// - Settings
+// - Payments
+// - Projects
+// - Lock Account
+// ======================================================
+
 const AppHeaderDropdown = () => {
+  // ====================================================
+  // TEMA
+  // ====================================================
+
+  const {
+    colorMode,
+    setColorMode,
+  } = useColorModes(
+    'coreui-free-react-admin-template-theme',
+  )
+
+  // ====================================================
+  // INTERFAZ
+  // ====================================================
+
   return (
-    <CDropdown variant="nav-item">
-      <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
-        <CAvatar src={avatar8} size="md" />
+    <CDropdown
+      variant="nav-item"
+      placement="bottom-end"
+    >
+      {/* ==============================================
+          AVATAR
+      ============================================== */}
+
+      <CDropdownToggle
+        className="py-0 pe-0"
+        caret={false}
+      >
+        <CAvatar
+          src={avatar8}
+          size="md"
+        />
       </CDropdownToggle>
-      <CDropdownMenu className="pt-0" placement="bottom-end">
-        <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
-        <CDropdownItem href="#">
-          <CIcon icon={cilBell} className="me-2" />
-          Updates
-          <CBadge color="info" className="ms-2">
-            42
-          </CBadge>
+
+      {/* ==============================================
+          MENÚ DE TEMA
+      ============================================== */}
+
+      <CDropdownMenu
+        placement="bottom-end"
+        style={{
+          minWidth:
+            '170px',
+        }}
+      >
+        {/* ============================================
+            LIGHT
+        ============================================ */}
+
+        <CDropdownItem
+          active={
+            colorMode ===
+            'light'
+          }
+          className="d-flex align-items-center"
+          as="button"
+          type="button"
+          onClick={() =>
+            setColorMode(
+              'light',
+            )
+          }
+        >
+          <CIcon
+            icon={cilSun}
+            className="me-2"
+            size="lg"
+          />
+
+          Light
         </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilEnvelopeOpen} className="me-2" />
-          Messages
-          <CBadge color="success" className="ms-2">
-            42
-          </CBadge>
+
+        {/* ============================================
+            DARK
+        ============================================ */}
+
+        <CDropdownItem
+          active={
+            colorMode ===
+            'dark'
+          }
+          className="d-flex align-items-center"
+          as="button"
+          type="button"
+          onClick={() =>
+            setColorMode(
+              'dark',
+            )
+          }
+        >
+          <CIcon
+            icon={cilMoon}
+            className="me-2"
+            size="lg"
+          />
+
+          Dark
         </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilTask} className="me-2" />
-          Tasks
-          <CBadge color="danger" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilCommentSquare} className="me-2" />
-          Comments
-          <CBadge color="warning" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownHeader className="bg-body-secondary fw-semibold my-2">Settings</CDropdownHeader>
-        <CDropdownItem href="#">
-          <CIcon icon={cilUser} className="me-2" />
-          Profile
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilSettings} className="me-2" />
-          Settings
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilCreditCard} className="me-2" />
-          Payments
-          <CBadge color="secondary" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilFile} className="me-2" />
-          Projects
-          <CBadge color="primary" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownDivider />
-        <CDropdownItem href="#">
-          <CIcon icon={cilLockLocked} className="me-2" />
-          Lock Account
+
+        {/* ============================================
+            AUTO
+        ============================================ */}
+
+        <CDropdownItem
+          active={
+            colorMode ===
+            'auto'
+          }
+          className="d-flex align-items-center"
+          as="button"
+          type="button"
+          onClick={() =>
+            setColorMode(
+              'auto',
+            )
+          }
+        >
+          <CIcon
+            icon={cilContrast}
+            className="me-2"
+            size="lg"
+          />
+
+          Auto
         </CDropdownItem>
       </CDropdownMenu>
     </CDropdown>
