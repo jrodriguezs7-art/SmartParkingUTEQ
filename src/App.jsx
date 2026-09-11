@@ -9,7 +9,9 @@ import {
   Routes,
 } from 'react-router-dom'
 
-import { useSelector } from 'react-redux'
+import {
+  useSelector,
+} from 'react-redux'
 
 import {
   CSpinner,
@@ -20,7 +22,7 @@ import './scss/style.scss'
 import './scss/examples.scss'
 
 // ======================================================
-// LAYOUT
+// LAYOUT PRINCIPAL
 // ======================================================
 
 const DefaultLayout =
@@ -84,7 +86,7 @@ const PasswordChanged =
   )
 
 // ======================================================
-// ERRORES
+// PÁGINAS DE ERROR
 // ======================================================
 
 const Page404 =
@@ -104,10 +106,21 @@ const Page500 =
   )
 
 // ======================================================
-// ESCÁNER MÓVIL
+// ESCÁNER MÓVIL DE PLACAS
 //
-// Esta ruta NO usa DefaultLayout.
-// Por eso el teléfono no verá sidebar.
+// IMPORTANTE:
+//
+// Esta ruta se carga FUERA de DefaultLayout.
+//
+// De esta manera, cuando el teléfono escanee el QR,
+// solamente verá el escáner móvil.
+//
+// No aparecerán:
+//
+// - Sidebar
+// - Header
+// - Footer
+//
 // ======================================================
 
 const ReconocimientoMovil =
@@ -119,22 +132,27 @@ const ReconocimientoMovil =
   )
 
 // ======================================================
-// APP
+// COMPONENTE PRINCIPAL
 // ======================================================
 
 const App = () => {
   const {
     isColorModeSet,
     setColorMode,
-  } = useColorModes(
-    'coreui-free-react-admin-template-theme',
-  )
+  } =
+    useColorModes(
+      'coreui-free-react-admin-template-theme',
+    )
 
   const storedTheme =
     useSelector(
       (state) =>
         state.theme,
     )
+
+  // ====================================================
+  // CONFIGURAR TEMA
+  // ====================================================
 
   useEffect(() => {
     const urlParams =
@@ -144,13 +162,17 @@ const App = () => {
         )[1],
       )
 
+    const parametroTema =
+      urlParams.get(
+        'theme',
+      )
+
     const theme =
-      urlParams.get('theme') &&
-      urlParams
-        .get('theme')
-        .match(
-          /^[A-Za-z0-9\s]+/,
-        )[0]
+      parametroTema
+        ? parametroTema.match(
+            /^[A-Za-z0-9\s]+/,
+          )?.[0]
+        : null
 
     if (theme) {
       setColorMode(
@@ -169,6 +191,10 @@ const App = () => {
     )
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ====================================================
+  // INTERFAZ
+  // ====================================================
+
   return (
     <HashRouter>
       <Suspense
@@ -182,14 +208,17 @@ const App = () => {
         }
       >
         <Routes>
+
           {/* ==========================================
               ESCÁNER MÓVIL
+
+              EJEMPLO:
+
+              /#/reconocimiento-movil?sesion=ABC123
           ========================================== */}
 
           <Route
-            exact
             path="/reconocimiento-movil"
-            name="Reconocimiento móvil"
             element={
               <ReconocimientoMovil />
             }
@@ -200,54 +229,42 @@ const App = () => {
           ========================================== */}
 
           <Route
-            exact
             path="/authentication/login"
-            name="Login Page"
             element={
               <Login />
             }
           />
 
           <Route
-            exact
             path="/authentication/register"
-            name="Register Page"
             element={
               <Register />
             }
           />
 
           <Route
-            exact
             path="/authentication/check-email"
-            name="Check Email Page"
             element={
               <CheckEmail />
             }
           />
 
           <Route
-            exact
             path="/authentication/reset-password"
-            name="Reset Password Page"
             element={
               <ResetPassword />
             }
           />
 
           <Route
-            exact
             path="/authentication/change-password"
-            name="Change Password Page"
             element={
               <ChangePassword />
             }
           />
 
           <Route
-            exact
             path="/authentication/password-changed"
-            name="Password Changed Page"
             element={
               <PasswordChanged />
             }
@@ -258,34 +275,30 @@ const App = () => {
           ========================================== */}
 
           <Route
-            exact
             path="/error-pages/404"
-            name="Page 404"
             element={
               <Page404 />
             }
           />
 
           <Route
-            exact
             path="/error-pages/500"
-            name="Page 500"
             element={
               <Page500 />
             }
           />
 
           {/* ==========================================
-              PANEL PRINCIPAL
+              APLICACIÓN PRINCIPAL
           ========================================== */}
 
           <Route
             path="*"
-            name="Home"
             element={
               <DefaultLayout />
             }
           />
+
         </Routes>
       </Suspense>
     </HashRouter>
