@@ -2,6 +2,10 @@
 
 Sistema web para la gestión de vehículos y propietarios del proyecto **Smart Parking UTEQ**. La aplicación fue desarrollada con **React**, **CoreUI** y **Supabase**, y permite consultar, registrar, editar y eliminar vehículos, administrar los puestos del parqueadero en tiempo real y reconocer placas vehiculares de forma automática mediante OCR.
 
+# URL de la Página desplegada en AZURE
+
+https://black-wave-0c6e08d0f.3.azurestaticapps.net
+
 ## Tecnologías utilizadas
 
 - React
