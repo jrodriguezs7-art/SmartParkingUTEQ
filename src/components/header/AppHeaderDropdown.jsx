@@ -17,28 +17,10 @@ import {
 
 import CIcon from '@coreui/icons-react'
 
-import avatar8 from './../../assets/images/avatars/8.jpg'
+import avatar8 from './../../assets/images/avatars/8.jpeg'
 
 // ======================================================
 // MENÚ DEL AVATAR
-//
-// Al pulsar el avatar únicamente aparecen:
-//
-// - Light
-// - Dark
-// - Auto
-//
-// Se eliminaron las opciones originales:
-//
-// - Updates
-// - Messages
-// - Tasks
-// - Comments
-// - Profile
-// - Settings
-// - Payments
-// - Projects
-// - Lock Account
 // ======================================================
 
 const AppHeaderDropdown = () => {
@@ -63,13 +45,38 @@ const AppHeaderDropdown = () => {
       placement="bottom-end"
     >
       {/* ==============================================
-          AVATAR
+          NOMBRE + AVATAR
       ============================================== */}
 
       <CDropdownToggle
-        className="py-0 pe-0"
+        className="py-0 pe-0 d-flex align-items-center gap-3"
         caret={false}
       >
+        {/* ============================================
+            NOMBRES Y APELLIDOS
+        ============================================ */}
+
+        <div
+          className="text-end"
+          style={{
+            lineHeight: '1.2',
+          }}
+        >
+          <div
+            className="fw-semibold"
+            style={{
+              fontSize: '14px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            RODRÍGUEZ SARMIENTO JEHIEL JEREMÍAS
+          </div>
+        </div>
+
+        {/* ============================================
+            AVATAR
+        ============================================ */}
+
         <CAvatar
           src={avatar8}
           size="md"
@@ -83,8 +90,7 @@ const AppHeaderDropdown = () => {
       <CDropdownMenu
         placement="bottom-end"
         style={{
-          minWidth:
-            '170px',
+          minWidth: '170px',
         }}
       >
         {/* ============================================
@@ -93,8 +99,7 @@ const AppHeaderDropdown = () => {
 
         <CDropdownItem
           active={
-            colorMode ===
-            'light'
+            colorMode === 'light'
           }
           className="d-flex align-items-center"
           as="button"
@@ -120,8 +125,7 @@ const AppHeaderDropdown = () => {
 
         <CDropdownItem
           active={
-            colorMode ===
-            'dark'
+            colorMode === 'dark'
           }
           className="d-flex align-items-center"
           as="button"
@@ -147,8 +151,7 @@ const AppHeaderDropdown = () => {
 
         <CDropdownItem
           active={
-            colorMode ===
-            'auto'
+            colorMode === 'auto'
           }
           className="d-flex align-items-center"
           as="button"
