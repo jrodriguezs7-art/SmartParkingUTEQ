@@ -282,6 +282,40 @@ const calcularRectangulo = (
 // IDENTIDAD DEL DISPOSITIVO
 // ======================================================
 
+const crearHashSimple =
+  (
+    texto = '',
+  ) => {
+    let hash =
+      2166136261
+
+    for (
+      let i = 0;
+      i < texto.length;
+      i += 1
+    ) {
+      hash ^=
+        texto.charCodeAt(
+          i,
+        )
+
+      hash =
+        Math.imul(
+          hash,
+          16777619,
+        )
+    }
+
+    return (
+      hash >>> 0
+    )
+      .toString(16)
+      .padStart(
+        8,
+        '0',
+      )
+  }
+
 const obtenerIdDispositivo =
   () => {
     const clave =
@@ -298,21 +332,23 @@ const obtenerIdDispositivo =
         return existente
       }
 
-      let nuevoId = ''
-
-      if (
+      const nuevoId =
         window.crypto
           ?.randomUUID
-      ) {
-        nuevoId =
-          window.crypto
-            .randomUUID()
-      } else {
-        nuevoId =
-          `${Date.now().toString(36)}-${Math.random()
-            .toString(36)
-            .slice(2)}`
-      }
+          ? window.crypto
+              .randomUUID()
+          : `disp-${crearHashSimple(
+              [
+                navigator.userAgent,
+                navigator.platform,
+                navigator.language,
+                window.screen
+                  ?.width,
+                window.screen
+                  ?.height,
+                window.devicePixelRatio,
+              ].join('|'),
+            )}`
 
       window.localStorage
         .setItem(
@@ -322,13 +358,21 @@ const obtenerIdDispositivo =
 
       return nuevoId
     } catch {
-      return (
-        Date.now()
-          .toString(36) +
-        Math.random()
-          .toString(36)
-          .slice(2)
-      )
+      // Si localStorage no está disponible, usamos una
+      // huella determinista. Así un refresh no crea un
+      // dispositivo distinto.
+      return `disp-${crearHashSimple(
+        [
+          navigator.userAgent,
+          navigator.platform,
+          navigator.language,
+          window.screen
+            ?.width,
+          window.screen
+            ?.height,
+          window.devicePixelRatio,
+        ].join('|'),
+      )}`
     }
   }
 
@@ -435,6 +479,116 @@ const obtenerNombreDispositivo =
   }
 
 // ======================================================
+// CONTROL PERSISTENTE DE SESIONES CERRADAS
+// ======================================================
+
+const obtenerClaveSesionCerrada =
+  (
+    sesion,
+    dispositivoId,
+  ) =>
+    `smartparking-sesion-cerrada:${sesion}:${dispositivoId}`
+
+const estaSesionCerrada =
+  (
+    sesion,
+    dispositivoId,
+  ) => {
+    const clave =
+      obtenerClaveSesionCerrada(
+        sesion,
+        dispositivoId,
+      )
+
+    try {
+      if (
+        window.localStorage
+          .getItem(
+            clave,
+          ) === '1'
+      ) {
+        return true
+      }
+    } catch {
+      // Continuamos con sessionStorage.
+    }
+
+    try {
+      return (
+        window.sessionStorage
+          .getItem(
+            clave,
+          ) === '1'
+      )
+    } catch {
+      return false
+    }
+  }
+
+const marcarSesionCerrada =
+  (
+    sesion,
+    dispositivoId,
+  ) => {
+    const clave =
+      obtenerClaveSesionCerrada(
+        sesion,
+        dispositivoId,
+      )
+
+    try {
+      window.localStorage
+        .setItem(
+          clave,
+          '1',
+        )
+    } catch {
+      // Ignoramos y probamos sessionStorage.
+    }
+
+    try {
+      window.sessionStorage
+        .setItem(
+          clave,
+          '1',
+        )
+    } catch {
+      // El control del administrador seguirá bloqueando
+      // la reconexión mientras el QR permanezca activo.
+    }
+  }
+
+const permitirReingresoSesion =
+  (
+    sesion,
+    dispositivoId,
+  ) => {
+    const clave =
+      obtenerClaveSesionCerrada(
+        sesion,
+        dispositivoId,
+      )
+
+    try {
+      window.localStorage
+        .removeItem(
+          clave,
+        )
+    } catch {
+      // Sin acción.
+    }
+
+    try {
+      window.sessionStorage
+        .removeItem(
+          clave,
+        )
+    } catch {
+      // Sin acción.
+    }
+  }
+
+// ======================================================
 // COMPONENTE MÓVIL
 // ======================================================
 
@@ -444,12 +598,18 @@ const MonitoreoEntradaMovil = () => {
 
   const [
     searchParams,
+    setSearchParams,
   ] = useSearchParams()
 
   const sesion =
     searchParams.get(
       'sesion',
     ) || ''
+
+  const reingresoSolicitado =
+    searchParams.get(
+      'reingreso',
+    ) === '1'
 
   const dispositivoId =
     useMemo(
@@ -904,11 +1064,24 @@ const MonitoreoEntradaMovil = () => {
                     )
                   }
 
+                  permitirReingresoSesion(
+                    token,
+                    dispositivoId,
+                  )
+
+                  parametrosHash.set(
+                    'reingreso',
+                    '1',
+                  )
+
+                  url.hash =
+                    `#/monitoreo-entrada-movil?${parametrosHash.toString()}`
+
                   detenerEscanerQr()
 
                   window.location
                     .assign(
-                      valor,
+                      url.toString(),
                     )
 
                   return
@@ -1000,6 +1173,11 @@ const MonitoreoEntradaMovil = () => {
         true,
       )
 
+      marcarSesionCerrada(
+        sesion,
+        dispositivoId,
+      )
+
       setError('')
 
       const canal =
@@ -1089,6 +1267,36 @@ const MonitoreoEntradaMovil = () => {
       return undefined
     }
 
+    if (
+      reingresoSolicitado
+    ) {
+      permitirReingresoSesion(
+        sesion,
+        dispositivoId,
+      )
+    } else if (
+      estaSesionCerrada(
+        sesion,
+        dispositivoId,
+      )
+    ) {
+      setConectado(
+        false,
+      )
+
+      setCanalListo(
+        false,
+      )
+
+      setSesionCerrada(
+        true,
+      )
+
+      setError('')
+
+      return undefined
+    }
+
     cerrandoRef.current =
       false
 
@@ -1147,6 +1355,27 @@ const MonitoreoEntradaMovil = () => {
         )
 
         setError('')
+
+        if (
+          reingresoSolicitado
+        ) {
+          const nuevosParametros =
+            new URLSearchParams(
+              searchParams,
+            )
+
+          nuevosParametros.delete(
+            'reingreso',
+          )
+
+          setSearchParams(
+            nuevosParametros,
+            {
+              replace:
+                true,
+            },
+          )
+        }
       },
     )
 
@@ -1220,6 +1449,9 @@ const MonitoreoEntradaMovil = () => {
 
               nombreDispositivo,
 
+              reingreso:
+                reingresoSolicitado,
+
               fecha:
                 new Date()
                   .toISOString(),
@@ -1268,6 +1500,7 @@ const MonitoreoEntradaMovil = () => {
     sesion,
     dispositivoId,
     nombreDispositivo,
+    reingresoSolicitado,
   ]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ====================================================
@@ -1691,19 +1924,10 @@ const MonitoreoEntradaMovil = () => {
           resultadoFinal,
         )
 
-        let imagenParaPc =
-          normalizado
-            .imagenMarcada ||
-          ''
-
-        if (
-          imagenParaPc.length >
-          450000
-        ) {
-          imagenParaPc =
-            ''
-        }
-
+        // Enviamos a la PC solamente los datos necesarios.
+        // Las fotos y la ficha completa del vehículo se
+        // reconstruyen allí con Supabase usando la placa.
+        // Esto evita que Realtime falle por payloads grandes.
         await canalRef.current
           ?.send({
             type:
@@ -1713,14 +1937,39 @@ const MonitoreoEntradaMovil = () => {
               'resultado_monitoreo',
 
             payload: {
-              ...resultadoFinal,
-
               dispositivoId,
 
               nombreDispositivo,
 
-              imagenMarcada:
-                imagenParaPc,
+              placa:
+                resultadoFinal
+                  .placa,
+
+              confianza:
+                resultadoFinal
+                  .confianza,
+
+              estado:
+                resultadoFinal
+                  .estado,
+
+              vehiculoEncontrado:
+                resultadoFinal
+                  .vehiculoEncontrado,
+
+              bbox:
+                resultadoFinal
+                  .bbox ||
+                null,
+
+              dimensiones:
+                resultadoFinal
+                  .dimensiones ||
+                null,
+
+              fecha:
+                new Date()
+                  .toISOString(),
             },
           })
       } catch (err) {

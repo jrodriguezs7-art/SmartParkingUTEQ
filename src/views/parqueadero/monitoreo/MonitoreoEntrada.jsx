@@ -444,6 +444,16 @@ const MonitoreoEntradaEscritorio =
     const contadorDispositivosRef =
       useRef(0)
 
+    const numerosDispositivosRef =
+      useRef(
+        new Map(),
+      )
+
+    const dispositivosBloqueadosRef =
+      useRef(
+        new Set(),
+      )
+
     // ==================================================
     // CAMBIAR ENTRE CÁMARA Y QR
     // ==================================================
@@ -1192,6 +1202,12 @@ const MonitoreoEntradaEscritorio =
           contadorDispositivosRef.current =
             0
 
+          numerosDispositivosRef.current =
+            new Map()
+
+          dispositivosBloqueadosRef.current =
+            new Set()
+
           setDispositivosConectados(
             [],
           )
@@ -1252,6 +1268,87 @@ const MonitoreoEntradaEscritorio =
                     'Dispositivo móvil',
                 ).trim()
 
+              const reingresoSolicitado =
+                Boolean(
+                  payload
+                    ?.reingreso,
+                )
+
+              // Si el administrador o el propio teléfono cerró
+              // esta sesión, un simple refresh NO puede volver
+              // a activarla.
+              //
+              // Solamente se permite volver a entrar cuando el
+              // teléfono escanea expresamente el QR otra vez.
+              if (
+                dispositivosBloqueadosRef
+                  .current
+                  .has(
+                    dispositivoId,
+                  ) &&
+                !reingresoSolicitado
+              ) {
+                await canal.send({
+                  type:
+                    'broadcast',
+
+                  event:
+                    'sesion_cerrada',
+
+                  payload: {
+                    activa:
+                      false,
+
+                    alcance:
+                      'dispositivo',
+
+                    dispositivoId,
+
+                    motivo:
+                      'sesion_revocada',
+
+                    fecha:
+                      new Date()
+                        .toISOString(),
+                  },
+                })
+
+                return
+              }
+
+              if (
+                reingresoSolicitado
+              ) {
+                dispositivosBloqueadosRef
+                  .current
+                  .delete(
+                    dispositivoId,
+                  )
+              }
+
+              let numero =
+                numerosDispositivosRef
+                  .current
+                  .get(
+                    dispositivoId,
+                  )
+
+              if (!numero) {
+                contadorDispositivosRef.current +=
+                  1
+
+                numero =
+                  contadorDispositivosRef
+                    .current
+
+                numerosDispositivosRef
+                  .current
+                  .set(
+                    dispositivoId,
+                    numero,
+                  )
+              }
+
               setDispositivosConectados(
                 (
                   anteriores,
@@ -1275,6 +1372,8 @@ const MonitoreoEntradaEscritorio =
                           ? {
                               ...dispositivo,
 
+                              numero,
+
                               nombre:
                                 nombreDispositivo,
 
@@ -1286,18 +1385,13 @@ const MonitoreoEntradaEscritorio =
                     )
                   }
 
-                  contadorDispositivosRef.current +=
-                    1
-
                   return [
                     ...anteriores,
                     {
                       id:
                         dispositivoId,
 
-                      numero:
-                        contadorDispositivosRef
-                          .current,
+                      numero,
 
                       nombre:
                         nombreDispositivo,
@@ -1320,8 +1414,7 @@ const MonitoreoEntradaEscritorio =
                 'CONECTADO',
               )
 
-              // Confirmamos únicamente al dispositivo que
-              // acaba de solicitar acceso a esta sesión.
+              // Confirmamos únicamente a este teléfono.
               await canal.send({
                 type:
                   'broadcast',
@@ -1368,6 +1461,12 @@ const MonitoreoEntradaEscritorio =
               if (!dispositivoId) {
                 return
               }
+
+              dispositivosBloqueadosRef
+                .current
+                .add(
+                  dispositivoId,
+                )
 
               setDispositivosConectados(
                 (
@@ -1443,8 +1542,31 @@ const MonitoreoEntradaEscritorio =
                 completarResultado({
                   ...payload,
 
+                  // No dependemos de enviar por Realtime todo el
+                  // objeto del vehículo desde el teléfono. La PC
+                  // lo vuelve a resolver localmente con la placa.
+                  vehiculo:
+                    null,
+
+                  // La PC determina por sí misma si la placa
+                  // existe usando su propia lista de Supabase.
+                  // Así no dependemos de que el teléfono haya
+                  // terminado de cargar esa lista.
+                  vehiculoEncontrado:
+                    undefined,
+
+                  // También dejamos que la PC derive el estado
+                  // final según el vehículo encontrado.
+                  estado:
+                    undefined,
+
                   origen:
                     'telefono',
+
+                  dispositivoNombre:
+                    payload
+                      ?.nombreDispositivo ||
+                    '',
 
                   apiOk:
                     true,
@@ -1535,6 +1657,12 @@ const MonitoreoEntradaEscritorio =
         }
 
         try {
+          dispositivosBloqueadosRef
+            .current
+            .add(
+              dispositivoId,
+            )
+
           await canal.send({
             type:
               'broadcast',
