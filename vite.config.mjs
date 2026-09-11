@@ -65,7 +65,7 @@ export default defineConfig(
           `${ocrUrl.pathname}${ocrUrl.search}`
 
         proxyOcr = {
-          '/ocr-api': {
+          '/api/ocr': {
             target:
               ocrTarget,
 

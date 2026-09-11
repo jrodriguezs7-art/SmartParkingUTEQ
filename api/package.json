@@ -1,0 +1,9 @@
+{
+  "name": "smartparking-uteq-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API administrada de Smart Parking UTEQ",
+  "engines": {
+    "node": ">=18 <21"
+  }
+}

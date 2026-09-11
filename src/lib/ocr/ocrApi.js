@@ -1064,7 +1064,7 @@ export const detectarPlacaApi =
 
       const response =
         await fetch(
-          '/ocr-api',
+          '/api/ocr',
           {
             method: 'POST',
 
