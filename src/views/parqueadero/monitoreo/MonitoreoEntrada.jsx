@@ -2381,63 +2381,6 @@ const MonitoreoEntradaEscritorio =
                       )}
 
                       {/* ==============================
-                          RESUMEN
-                      ============================== */}
-
-                      <div className="border rounded overflow-hidden mb-3">
-                        <div className="d-flex justify-content-between p-3 border-bottom">
-                          <span className="text-body-secondary">
-                            Placa detectada
-                          </span>
-
-                          <strong>
-                            {placa}
-                          </strong>
-                        </div>
-
-                        <div className="d-flex justify-content-between p-3 border-bottom">
-                          <span className="text-body-secondary">
-                            Confianza OCR
-                          </span>
-
-                          <strong>
-                            {confianza}
-                          </strong>
-                        </div>
-
-                        <div className="d-flex justify-content-between p-3 border-bottom">
-                          <span className="text-body-secondary">
-                            Estado
-                          </span>
-
-                          <strong>
-                            {resultado.estado ||
-                              (registrado
-                                ? 'encontrado'
-                                : 'no_registrado')}
-                          </strong>
-                        </div>
-
-                        <div className="d-flex justify-content-between p-3">
-                          <span className="text-body-secondary">
-                            Vehículo encontrado
-                          </span>
-
-                          <strong
-                            className={
-                              registrado
-                                ? 'text-success'
-                                : 'text-danger'
-                            }
-                          >
-                            {registrado
-                              ? 'Sí'
-                              : 'No'}
-                          </strong>
-                        </div>
-                      </div>
-
-                      {/* ==============================
                           NO REGISTRADO
                       ============================== */}
 
@@ -2484,78 +2427,187 @@ const MonitoreoEntradaEscritorio =
                         )}
 
                       {/* ==============================
-                          DATOS DEL VEHÍCULO
+                          DATOS PRINCIPALES
                       ============================== */}
 
                       {registrado &&
                         vehiculo && (
                           <>
-                            <hr />
+                            <div className="border rounded p-3 mb-3">
+                              <CRow className="g-4 align-items-start">
+                                {/* =====================
+                                    DATOS DEL VEHÍCULO
+                                ===================== */}
 
-                            <h5 className="mb-3">
-                              Datos del vehículo
-                            </h5>
+                                <CCol
+                                  xs={12}
+                                  md={7}
+                                >
+                                  <h5 className="mb-3">
+                                    Datos del vehículo
+                                  </h5>
 
-                            <CRow className="g-3">
-                              <CCol xs={6}>
-                                <div className="text-body-secondary">
-                                  Marca
-                                </div>
+                                  <CRow className="g-3">
+                                    <CCol xs={6}>
+                                      <div className="text-body-secondary small">
+                                        Marca
+                                      </div>
 
-                                <strong>
-                                  {vehiculo.marca ||
-                                    '-'}
-                                </strong>
-                              </CCol>
+                                      <strong>
+                                        {vehiculo.marca ||
+                                          '-'}
+                                      </strong>
+                                    </CCol>
 
-                              <CCol xs={6}>
-                                <div className="text-body-secondary">
-                                  Modelo
-                                </div>
+                                    <CCol xs={6}>
+                                      <div className="text-body-secondary small">
+                                        Modelo
+                                      </div>
 
-                                <strong>
-                                  {vehiculo.modelo ||
-                                    '-'}
-                                </strong>
-                              </CCol>
+                                      <strong>
+                                        {vehiculo.modelo ||
+                                          '-'}
+                                      </strong>
+                                    </CCol>
 
-                              <CCol xs={6}>
-                                <div className="text-body-secondary">
-                                  Año
-                                </div>
+                                    <CCol xs={6}>
+                                      <div className="text-body-secondary small">
+                                        Año
+                                      </div>
 
-                                <strong>
-                                  {vehiculo.anio ||
-                                    '-'}
-                                </strong>
-                              </CCol>
+                                      <strong>
+                                        {vehiculo.anio ||
+                                          '-'}
+                                      </strong>
+                                    </CCol>
 
-                              <CCol xs={6}>
-                                <div className="text-body-secondary">
-                                  Color
-                                </div>
+                                    <CCol xs={6}>
+                                      <div className="text-body-secondary small">
+                                        Color
+                                      </div>
 
-                                <strong>
-                                  {vehiculo.color ||
-                                    '-'}
-                                </strong>
-                              </CCol>
+                                      <strong>
+                                        {vehiculo.color ||
+                                          '-'}
+                                      </strong>
+                                    </CCol>
 
-                              <CCol xs={12}>
-                                <div className="text-body-secondary">
-                                  Tipo
-                                </div>
+                                    <CCol xs={12}>
+                                      <div className="text-body-secondary small">
+                                        Tipo
+                                      </div>
 
-                                <strong>
-                                  {vehiculo.tipo ||
-                                    '-'}
-                                </strong>
-                              </CCol>
-                            </CRow>
+                                      <strong>
+                                        {vehiculo.tipo ||
+                                          '-'}
+                                      </strong>
+                                    </CCol>
+                                  </CRow>
+                                </CCol>
+
+                                {/* =====================
+                                    PROPIETARIO
+                                ===================== */}
+
+                                <CCol
+                                  xs={12}
+                                  md={5}
+                                >
+                                  <h5 className="mb-3">
+                                    Propietario
+                                  </h5>
+
+                                  <div className="d-flex gap-3 align-items-start">
+                                    {vehiculo
+                                      .foto_propietario_url ? (
+                                      <img
+                                        src={
+                                          vehiculo
+                                            .foto_propietario_url
+                                        }
+                                        alt="Propietario"
+                                        className="rounded border flex-shrink-0"
+                                        style={{
+                                          width:
+                                            '110px',
+
+                                          height:
+                                            '110px',
+
+                                          objectFit:
+                                            'cover',
+                                        }}
+                                      />
+                                    ) : (
+                                      <div
+                                        className="rounded border d-flex align-items-center justify-content-center text-body-secondary flex-shrink-0"
+                                        style={{
+                                          width:
+                                            '110px',
+
+                                          height:
+                                            '110px',
+                                        }}
+                                      >
+                                        Sin foto
+                                      </div>
+                                    )}
+
+                                    <div className="flex-grow-1">
+                                      <div className="mb-2">
+                                        <div className="text-body-secondary small">
+                                          Nombre
+                                        </div>
+
+                                        <strong>
+                                          {vehiculo
+                                            .propietario_nombre ||
+                                            '-'}
+                                        </strong>
+                                      </div>
+
+                                      <div className="mb-2">
+                                        <div className="text-body-secondary small">
+                                          Cédula
+                                        </div>
+
+                                        <strong>
+                                          {vehiculo
+                                            .cedula_enmascarada ||
+                                            '-'}
+                                        </strong>
+                                      </div>
+
+                                      <div>
+                                        <div className="text-body-secondary small mb-1">
+                                          Autorización
+                                        </div>
+
+                                        <CBadge
+                                          color={
+                                            vehiculo.autorizado
+                                              ? 'success'
+                                              : 'danger'
+                                          }
+                                        >
+                                          {vehiculo.autorizado
+                                            ? 'AUTORIZADO'
+                                            : 'NO AUTORIZADO'}
+                                        </CBadge>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CCol>
+                              </CRow>
+                            </div>
+
+                            {/* ==========================
+                                FOTOGRAFÍA DEL VEHÍCULO
+                            ========================== */}
 
                             {vehiculo.foto_url && (
-                              <>
-                                <div className="fw-semibold mt-4 mb-2">
+                              <div className="mb-3">
+                                <div className="fw-semibold mb-2">
                                   Fotografía del vehículo
                                 </div>
 
@@ -2573,77 +2625,86 @@ const MonitoreoEntradaEscritorio =
                                       'cover',
                                   }}
                                 />
-                              </>
-                            )}
-
-                            <hr className="my-4" />
-
-                            <h5>
-                              Propietario
-                            </h5>
-
-                            <div className="mt-3">
-                              <div className="text-body-secondary">
-                                Nombre
                               </div>
-
-                              <strong>
-                                {vehiculo
-                                  .propietario_nombre ||
-                                  '-'}
-                              </strong>
-                            </div>
-
-                            <div className="mt-3">
-                              <div className="text-body-secondary">
-                                Cédula
-                              </div>
-
-                              <strong>
-                                {vehiculo
-                                  .cedula_enmascarada ||
-                                  '-'}
-                              </strong>
-                            </div>
-
-                            <div className="mt-3">
-                              <div className="text-body-secondary">
-                                Autorización
-                              </div>
-
-                              <CBadge
-                                color={
-                                  vehiculo.autorizado
-                                    ? 'success'
-                                    : 'danger'
-                                }
-                              >
-                                {vehiculo.autorizado
-                                  ? 'AUTORIZADO'
-                                  : 'NO AUTORIZADO'}
-                              </CBadge>
-                            </div>
-
-                            {vehiculo
-                              .foto_propietario_url && (
-                              <img
-                                src={
-                                  vehiculo
-                                    .foto_propietario_url
-                                }
-                                alt="Propietario"
-                                className="img-fluid rounded border w-100 mt-3"
-                                style={{
-                                  maxHeight:
-                                    '320px',
-
-                                  objectFit:
-                                    'contain',
-                                }}
-                              />
                             )}
                           </>
                         )}
+
+                      {/* ==============================
+                          INFORMACIÓN DEL RECONOCIMIENTO
+                          AL FINAL
+                      ============================== */}
+
+                      <div className="border rounded overflow-hidden mb-3">
+                        <div className="px-3 py-2 border-bottom fw-semibold">
+                          Información del reconocimiento
+                        </div>
+
+                        <CRow className="g-0">
+                          <CCol
+                            xs={6}
+                            className="p-3 border-end border-bottom"
+                          >
+                            <div className="text-body-secondary small">
+                              Placa detectada
+                            </div>
+
+                            <strong>
+                              {placa}
+                            </strong>
+                          </CCol>
+
+                          <CCol
+                            xs={6}
+                            className="p-3 border-bottom"
+                          >
+                            <div className="text-body-secondary small">
+                              Confianza OCR
+                            </div>
+
+                            <strong>
+                              {confianza}
+                            </strong>
+                          </CCol>
+
+                          <CCol
+                            xs={6}
+                            className="p-3 border-end"
+                          >
+                            <div className="text-body-secondary small">
+                              Estado
+                            </div>
+
+                            <strong>
+                              {resultado.estado ||
+                                (registrado
+                                  ? 'encontrado'
+                                  : 'no_registrado')}
+                            </strong>
+                          </CCol>
+
+                          <CCol
+                            xs={6}
+                            className="p-3"
+                          >
+                            <div className="text-body-secondary small">
+                              Vehículo encontrado
+                            </div>
+
+                            <strong
+                              className={
+                                registrado
+                                  ? 'text-success'
+                                  : 'text-danger'
+                              }
+                            >
+                              {registrado
+                                ? 'Sí'
+                                : 'No'}
+                            </strong>
+                          </CCol>
+                        </CRow>
+                      </div>
 
                       <CButton
                         color="secondary"
