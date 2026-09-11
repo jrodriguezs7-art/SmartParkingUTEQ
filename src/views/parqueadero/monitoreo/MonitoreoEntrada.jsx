@@ -441,6 +441,9 @@ const MonitoreoEntradaEscritorio =
     const canalMovilRef =
       useRef(null)
 
+    const contadorDispositivosRef =
+      useRef(0)
+
     // ==================================================
     // CAMBIAR ENTRE CÁMARA Y QR
     // ==================================================
@@ -568,6 +571,11 @@ const MonitoreoEntradaEscritorio =
       errorMovil,
       setErrorMovil,
     ] = useState('')
+
+    const [
+      dispositivosConectados,
+      setDispositivosConectados,
+    ] = useState([])
 
     // ==================================================
     // BUSCAR VEHÍCULO
@@ -1181,6 +1189,13 @@ const MonitoreoEntradaEscritorio =
             url,
           )
 
+          contadorDispositivosRef.current =
+            0
+
+          setDispositivosConectados(
+            [],
+          )
+
           setEstadoMovil(
             'CONECTANDO',
           )
@@ -1216,16 +1231,97 @@ const MonitoreoEntradaEscritorio =
                 'movil_conectado',
             },
 
-            async () => {
+            async ({
+              payload,
+            }) => {
+              const dispositivoId =
+                String(
+                  payload
+                    ?.dispositivoId ||
+                    '',
+                ).trim()
+
+              if (!dispositivoId) {
+                return
+              }
+
+              const nombreDispositivo =
+                String(
+                  payload
+                    ?.nombreDispositivo ||
+                    'Dispositivo móvil',
+                ).trim()
+
+              setDispositivosConectados(
+                (
+                  anteriores,
+                ) => {
+                  const existente =
+                    anteriores.find(
+                      (
+                        dispositivo,
+                      ) =>
+                        dispositivo.id ===
+                        dispositivoId,
+                    )
+
+                  if (existente) {
+                    return anteriores.map(
+                      (
+                        dispositivo,
+                      ) =>
+                        dispositivo.id ===
+                        dispositivoId
+                          ? {
+                              ...dispositivo,
+
+                              nombre:
+                                nombreDispositivo,
+
+                              ultimaActividad:
+                                new Date()
+                                  .toISOString(),
+                            }
+                          : dispositivo,
+                    )
+                  }
+
+                  contadorDispositivosRef.current +=
+                    1
+
+                  return [
+                    ...anteriores,
+                    {
+                      id:
+                        dispositivoId,
+
+                      numero:
+                        contadorDispositivosRef
+                          .current,
+
+                      nombre:
+                        nombreDispositivo,
+
+                      conectadoDesde:
+                        payload
+                          ?.fecha ||
+                        new Date()
+                          .toISOString(),
+
+                      ultimaActividad:
+                        new Date()
+                          .toISOString(),
+                    },
+                  ]
+                },
+              )
+
               setEstadoMovil(
                 'CONECTADO',
               )
 
-              // La PC confirma al teléfono que este QR
-              // todavía pertenece a una sesión activa.
-              // Si el QR es antiguo o la sesión ya fue
-              // cerrada, esta confirmación nunca llegará
-              // y la cámara del teléfono permanecerá bloqueada.
+              // Confirmamos únicamente al dispositivo que
+              // acaba de solicitar acceso a esta sesión.
               await canal.send({
                 type:
                   'broadcast',
@@ -1237,11 +1333,64 @@ const MonitoreoEntradaEscritorio =
                   activa:
                     true,
 
+                  dispositivoId,
+
                   fecha:
                     new Date()
                       .toISOString(),
                 },
               })
+            },
+          )
+
+          // ===========================================
+          // TELÉFONO DESCONECTADO
+          // ===========================================
+
+          canal.on(
+            'broadcast',
+
+            {
+              event:
+                'movil_desconectado',
+            },
+
+            ({
+              payload,
+            }) => {
+              const dispositivoId =
+                String(
+                  payload
+                    ?.dispositivoId ||
+                    '',
+                ).trim()
+
+              if (!dispositivoId) {
+                return
+              }
+
+              setDispositivosConectados(
+                (
+                  anteriores,
+                ) => {
+                  const siguientes =
+                    anteriores.filter(
+                      (
+                        dispositivo,
+                      ) =>
+                        dispositivo.id !==
+                        dispositivoId,
+                    )
+
+                  setEstadoMovil(
+                    siguientes.length > 0
+                      ? 'CONECTADO'
+                      : 'ESPERANDO',
+                  )
+
+                  return siguientes
+                },
+              )
             },
           )
 
@@ -1260,6 +1409,36 @@ const MonitoreoEntradaEscritorio =
             ({
               payload,
             }) => {
+              const dispositivoId =
+                String(
+                  payload
+                    ?.dispositivoId ||
+                    '',
+                ).trim()
+
+              if (dispositivoId) {
+                setDispositivosConectados(
+                  (
+                    anteriores,
+                  ) =>
+                    anteriores.map(
+                      (
+                        dispositivo,
+                      ) =>
+                        dispositivo.id ===
+                        dispositivoId
+                          ? {
+                              ...dispositivo,
+
+                              ultimaActividad:
+                                new Date()
+                                  .toISOString(),
+                            }
+                          : dispositivo,
+                    ),
+                )
+              }
+
               const final =
                 completarResultado({
                   ...payload,
@@ -1337,6 +1516,82 @@ const MonitoreoEntradaEscritorio =
       }
 
     // ==================================================
+    // CERRAR UN DISPOSITIVO ESPECÍFICO
+    // ==================================================
+
+    const cerrarSesionDispositivo =
+      async (
+        dispositivoId,
+      ) => {
+        const canal =
+          canalMovilRef
+            .current
+
+        if (
+          !canal ||
+          !dispositivoId
+        ) {
+          return
+        }
+
+        try {
+          await canal.send({
+            type:
+              'broadcast',
+
+            event:
+              'sesion_cerrada',
+
+            payload: {
+              activa:
+                false,
+
+              alcance:
+                'dispositivo',
+
+              dispositivoId,
+
+              fecha:
+                new Date()
+                  .toISOString(),
+            },
+          })
+
+          setDispositivosConectados(
+            (
+              anteriores,
+            ) => {
+              const siguientes =
+                anteriores.filter(
+                  (
+                    dispositivo,
+                  ) =>
+                    dispositivo.id !==
+                    dispositivoId,
+                )
+
+              setEstadoMovil(
+                siguientes.length > 0
+                  ? 'CONECTADO'
+                  : 'ESPERANDO',
+              )
+
+              return siguientes
+            },
+          )
+        } catch (err) {
+          console.error(
+            'No se pudo cerrar la sesión del dispositivo:',
+            err,
+          )
+
+          setErrorMovil(
+            'No se pudo cerrar la sesión de ese dispositivo.',
+          )
+        }
+      }
+
+    // ==================================================
     // CERRAR QR
     // ==================================================
 
@@ -1361,6 +1616,9 @@ const MonitoreoEntradaEscritorio =
               payload: {
                 activa:
                   false,
+
+                alcance:
+                  'todos',
 
                 fecha:
                   new Date()
@@ -1396,6 +1654,13 @@ const MonitoreoEntradaEscritorio =
         setUrlQr(
           '',
         )
+
+        setDispositivosConectados(
+          [],
+        )
+
+        contadorDispositivosRef.current =
+          0
 
         setEstadoMovil(
           'SIN_SESION',
@@ -1528,6 +1793,9 @@ const MonitoreoEntradaEscritorio =
             payload: {
               activa:
                 false,
+
+              alcance:
+                'todos',
 
               fecha:
                 new Date()
@@ -2275,46 +2543,108 @@ const MonitoreoEntradaEscritorio =
                         </div>
                       </>
                     ) : (
-                      <div
-                        className="d-flex flex-column justify-content-center align-items-center text-center border rounded p-4"
-                        style={{
-                          minHeight:
-                            '500px',
-                        }}
-                      >
-                        <div className="bg-white rounded p-3 mb-4">
-                          <QRCodeSVG
-                            value={
-                              urlQr
-                            }
-                            size={280}
-                            level="M"
-                            marginSize={2}
-                          />
+                      <div className="border rounded p-4">
+                        <div className="d-flex flex-column justify-content-center align-items-center text-center">
+                          <div className="bg-white rounded p-3 mb-4">
+                            <QRCodeSVG
+                              value={
+                                urlQr
+                              }
+                              size={280}
+                              level="M"
+                              marginSize={2}
+                            />
+                          </div>
+
+                          <h4>
+                            Escanee el QR con uno o varios teléfonos
+                          </h4>
+
+                          <div className="text-body-secondary mb-3">
+                            Estado:
+                            {' '}
+                            <strong>
+                              {
+                                textoEstadoMovil()
+                              }
+                            </strong>
+                          </div>
                         </div>
 
-                        <h4>
-                          Escanee el QR con el teléfono
-                        </h4>
+                        {/* ============================
+                            DISPOSITIVOS CONECTADOS
+                        ============================ */}
 
-                        <div className="text-body-secondary mb-4">
-                          Estado:
-                          {' '}
-                          <strong>
-                            {
-                              textoEstadoMovil()
-                            }
-                          </strong>
+                        <div className="mt-3">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <strong>
+                              Sesiones iniciadas
+                            </strong>
+
+                            <CBadge
+                              color="success"
+                            >
+                              {
+                                dispositivosConectados.length
+                              }
+                            </CBadge>
+                          </div>
+
+                          {dispositivosConectados.length === 0 ? (
+                            <div className="border rounded p-3 text-body-secondary text-center">
+                              Ningún teléfono conectado.
+                            </div>
+                          ) : (
+                            <div className="d-grid gap-2">
+                              {dispositivosConectados.map(
+                                (
+                                  dispositivo,
+                                ) => (
+                                  <div
+                                    key={
+                                      dispositivo.id
+                                    }
+                                    className="border rounded p-3 d-flex justify-content-between align-items-center gap-3 flex-wrap"
+                                  >
+                                    <div className="text-start">
+                                      <div className="fw-semibold">
+                                        Disp {dispositivo.numero}
+                                        {' · '}
+                                        {dispositivo.nombre}
+                                      </div>
+
+                                      <small className="text-body-secondary">
+                                        Sesión activa
+                                      </small>
+                                    </div>
+
+                                    <CButton
+                                      color="danger"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        cerrarSesionDispositivo(
+                                          dispositivo.id,
+                                        )
+                                      }
+                                    >
+                                      Cerrar sesión
+                                    </CButton>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <CButton
                           color="danger"
-                          variant="outline"
+                          className="w-100 mt-4"
                           onClick={
                             cerrarSesionMovil
                           }
                         >
-                          Cerrar sesión móvil
+                          Cerrar QR y todas las sesiones
                         </CButton>
                       </div>
                     )}
